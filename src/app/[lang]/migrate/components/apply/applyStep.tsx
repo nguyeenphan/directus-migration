@@ -22,6 +22,8 @@ type TProps = {
   mirrorData: boolean;
   sequencesConfirmed: boolean;
   force: boolean;
+  isRecomparing: boolean;
+  onRecompare: () => void;
   onBack: () => void;
 };
 
@@ -33,6 +35,8 @@ export const ApplyStep = ({
   mirrorData,
   sequencesConfirmed,
   force,
+  isRecomparing,
+  onRecompare,
   onBack,
 }: TProps) => {
   const translate = useTranslate();
@@ -74,6 +78,8 @@ export const ApplyStep = ({
         showSequenceResets={!sequencesConfirmed}
         onRunChange={applyRun.setRun}
         onRetry={applyRun.apply}
+        isRecomparing={isRecomparing}
+        onRecompare={onRecompare}
       />
     );
   }

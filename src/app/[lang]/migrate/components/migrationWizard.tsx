@@ -186,6 +186,8 @@ export const MigrationWizard = () => {
             mirrorData={picked.mirrorData}
             sequencesConfirmed={Boolean(picked.confirmedSql)}
             force={ends.force}
+            isRecomparing={comparison.isBuilding}
+            onRecompare={() => comparison.build('data')}
             onBack={() => goTo('data')}
           />
         )}

@@ -27,6 +27,7 @@ import {
 } from '@/models/run';
 
 import { RollbackDialog } from '../flowDialogs';
+import { RecompareButton } from '../recompareButton';
 import { RunLog } from './runLog';
 import { RunOutcome } from './runOutcome';
 
@@ -36,6 +37,9 @@ type TProps = {
   onRunChange: (run: TRun) => void;
 
   onRetry: () => void;
+
+  isRecomparing?: boolean;
+  onRecompare?: () => void;
 };
 
 export const RunView = ({
@@ -43,6 +47,8 @@ export const RunView = ({
   showSequenceResets = true,
   onRunChange,
   onRetry,
+  isRecomparing = false,
+  onRecompare,
 }: TProps) => {
   const translate = useTranslate();
   const [confirmRollback, setConfirmRollback] = useState(false);
@@ -111,6 +117,13 @@ export const RunView = ({
               <RotateCcw className="size-4" />
               {translate('run-retry')}
             </Button>
+          )}
+
+          {onRecompare && (
+            <RecompareButton
+              isRecomparing={isRecomparing}
+              onRecompare={onRecompare}
+            />
           )}
 
           {rollbackError && (
