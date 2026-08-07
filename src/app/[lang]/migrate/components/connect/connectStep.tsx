@@ -8,9 +8,9 @@ import type { TConnection, TSide } from '@/models/connection';
 import type { TProbeResult } from '@/models/probe';
 import type { TVersionDrift } from '@/utils/version';
 
-import { ConnectionCard } from './connectionCard';
-import { RelaxBanner } from './relaxBanner';
-import { VersionGate } from './versionGate';
+import { ConnectionCard } from './connection/connectionCard';
+import { RelaxBanner } from './gate/relaxBanner';
+import { VersionGate } from './gate/versionGate';
 
 type TProps = {
   source: TConnection;

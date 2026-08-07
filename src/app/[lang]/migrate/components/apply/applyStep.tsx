@@ -10,9 +10,11 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { hostOf, type TConnection } from '@/models/connection';
 import type { TPlan } from '@/models/plan';
 
-import { ConfirmWriteDialog } from './confirmWriteDialog';
-import { DryRunReport } from './dryRunReport';
-import { RunView } from './runView';
+import { DryRunReport } from './dryRun/dryRunReport';
+import { RunView } from './run/runView';
+import { ApplyOrderStep } from './step/applyOrderStep';
+import { ConfirmWriteDialog } from './step/confirmWriteDialog';
+import { SummaryTile } from './step/summaryTile';
 
 type TProps = {
   source: TConnection;
@@ -89,12 +91,12 @@ export const ApplyStep = ({
       <h1 className="text-lg font-semibold">{translate('apply-title')}</h1>
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <Tile label={translate('apply-tile-records')} value={counts.records} />
-        <Tile
+        <SummaryTile label={translate('apply-tile-records')} value={counts.records} />
+        <SummaryTile
           label={translate('apply-tile-collections')}
           value={collections.length}
         />
-        <Tile
+        <SummaryTile
           label={translate('apply-tile-deletes')}
           value={counts.deletes}
           tone="danger"
@@ -106,17 +108,17 @@ export const ApplyStep = ({
           {translate('apply-order-title')}
         </h2>
         <ol className="diff-dense">
-          <Step
+          <ApplyOrderStep
             index={1}
             label={translate('apply-order-backup')}
             detail={translate('apply-order-backup-detail')}
           />
-          <Step
+          <ApplyOrderStep
             index={2}
             label={translate('apply-order-files')}
             detail={translate('apply-order-files-detail')}
           />
-          <Step
+          <ApplyOrderStep
             index={3}
             label={translate('apply-order-data')}
             detail={translate('apply-order-data-detail', {
@@ -125,7 +127,7 @@ export const ApplyStep = ({
             })}
           />
           {mirrorData && (
-            <Step
+            <ApplyOrderStep
               index={4}
               label={translate('apply-order-mirror')}
               detail={translate('apply-order-mirror-detail', {
@@ -196,44 +198,3 @@ export const ApplyStep = ({
     </div>
   );
 };
-
-const Tile = ({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: 'danger';
-}) => (
-  <div className="border p-3">
-    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-      {label}
-    </p>
-    <p
-      className={`identifier text-2xl font-bold tabular-nums ${
-        tone === 'danger' && value > 0 ? 'text-destructive' : ''
-      }`}
-    >
-      {value}
-    </p>
-  </div>
-);
-
-const Step = ({
-  index,
-  label,
-  detail,
-}: {
-  index: number;
-  label: string;
-  detail: string;
-}) => (
-  <li className="flex gap-3">
-    <span className="identifier w-4 shrink-0 text-muted-foreground tabular-nums">
-      {index}.
-    </span>
-    <span className="flex-1">{label}</span>
-    <span className="identifier text-muted-foreground">{detail}</span>
-  </li>
-);

@@ -3,7 +3,7 @@
 import { Check, Loader2, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 
-import { CopyButton } from '@/components/copyButton';
+import { CopyButton } from '@/components/common/copyButton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -25,9 +25,9 @@ import { sequenceResetSql } from '@/models/run';
 import type { TTranslationKey } from '@/utils/translate';
 
 import { RecompareButton } from '../recompareButton';
-import { CollectionList } from './collectionList';
-import { RecordDetail } from './recordDetail';
-import { RecordList } from './recordList';
+import { CollectionList } from './collection/collectionList';
+import { RecordDetail } from './record/recordDetail';
+import { RecordList } from './record/recordList';
 
 type TProps = {
   source: TConnection;

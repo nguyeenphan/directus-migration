@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useTranslate } from '@/hooks/useTranslate';
 import { isFinished, type TRun } from '@/models/run';
 
-import { RunView } from '../apply/runView';
+import { RunView } from '../apply/run/runView';
 
 export const SchemaRunView = ({
   run,

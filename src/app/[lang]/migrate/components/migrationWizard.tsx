@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { EnvBar } from '@/components/envBar';
+import { EnvBar } from '@/components/layout/envBar';
 import { useConnections } from '@/hooks/useConnections';
 import { useMigrationSelections } from '@/hooks/useMigrationSelections';
 import { usePlan } from '@/hooks/usePlan';
@@ -14,11 +14,12 @@ import { destructiveChanges, sequenceResetsIn } from '@/models/plan';
 import { isFinished, sequenceResetSql } from '@/models/run';
 
 import { ApplyStep } from './apply/applyStep';
-import { ConfirmWriteDialog } from './apply/confirmWriteDialog';
+import { ConfirmWriteDialog } from './apply/step/confirmWriteDialog';
+import { PlanLogDialog } from './connect/connection/planLogDialog';
 import { ConnectStep } from './connect/connectStep';
-import { PlanLogDialog } from './connect/planLogDialog';
 import { DataStep } from './data/dataStep';
-import { LeaveFlowDialog, SchemaDriftDialog } from './flowDialogs';
+import { LeaveFlowDialog } from './dialogs/leaveFlowDialog';
+import { SchemaDriftDialog } from './dialogs/schemaDriftDialog';
 import { SchemaRunView } from './schema/schemaRunView';
 import { SchemaStep } from './schema/schemaStep';
 

@@ -18,8 +18,8 @@ import {
 } from '@/models/plan';
 
 import { RecompareButton } from '../recompareButton';
-import { SchemaDetail } from './schemaDetail';
-import { SchemaTree } from './schemaTree';
+import { SchemaDetail } from './detail/schemaDetail';
+import { SchemaTree } from './tree/schemaTree';
 
 type TProps = {
   plan: TSchemaPlan;
