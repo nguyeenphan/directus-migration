@@ -7,45 +7,20 @@ shadcn/ui, `@directus/sdk`.
 
 ```bash
 make install
-make dev      # http://localhost:3000 -> redirects to /vi or /en
+make dev
 make check    # lint + test + build
 ```
 
 Both instances are entered in the UI — a URL and a static admin token per side.
 Nothing is read from `.env`, and nothing is persisted: a reload loses the plan.
 
-## Environment variables
-
-Only one, and it is optional:
-
-```bash
-DIRECTUS_ALLOWED_HOSTS=cms.example.com,staging.example.com
-```
-
-Unset means the proxy will forward to any `http(s)` host the server can reach —
-an open proxy. Set it in any deployment strangers can load.
-
-## The proxy
-
-The browser never talks to Directus directly. Every call goes through
-[src/app/api/directus/[...path]/route.ts](src/app/api/directus/[...path]/route.ts),
-which forwards to the upstream named in the `X-Directus-Url` header (or the
-`_directus` query param, for `<img>` tags that cannot set headers). Only
-`authorization`, `content-type` and `accept` are forwarded up; `set-cookie` is
-dropped on the way back. This dodges CORS and keeps one place to log every
-request.
-
 ## The wizard
 
-Four steps, `connect → schema → data → apply`. Which steps are reachable is
-derived on every render by [src/models/flow.ts](src/models/flow.ts) — never
-remembered — so a changed connection or a stale plan cannot leave a step open
-behind the user. A plan carries the fingerprint of the pair it was built
-against; change either side and it reads as stale.
-
-Every write asks for the target host to be typed back first — schema-only runs
-included. No environment is treated as special: the confirmation is the same
-whether the target is local or production.
+Four steps: `connect → schema → data → apply`. Which ones are reachable is
+derived on every render by [src/models/flow.ts](src/models/flow.ts), never
+remembered, so a changed connection or a stale plan cannot leave a step open
+behind the user. Before applying, a dry run reports row counts and constraint
+violations, and every write asks for the target host to be typed back first.
 
 ## How a run works
 
@@ -92,7 +67,7 @@ therefore reflects the migration run, not the original record.
 | Path | What lives there |
 | --- | --- |
 | `src/app/[lang]/migrate/` | The wizard: `page.tsx`, `operations.ts` (server actions), and `components/` split per step. |
-| `src/app/api/directus/` | The upstream proxy. |
+| `src/app/api/directus/` | The upstream proxy route. |
 | `src/api/` | One module per concern — the only place that talks to Directus. |
 | `src/components/` | Components shared by more than one step (plus vendored `ui/`). |
 | `src/constants/` | Values: steps, stages, batch and page sizes, style maps. |
@@ -105,12 +80,19 @@ therefore reflects the migration run, not the original record.
 | `src/utils/` | Small pure helpers: `cn`, `chunkArray`, `withResult`, `wordDiff`. |
 | `public/locales/<locale>/common.json` | Translation files, served as static assets. |
 
-## i18n
-
-Locale comes from the URL (`/vi/...`, `/en/...`). [src/proxy.ts](src/proxy.ts)
-redirects unprefixed requests using `Accept-Language`, falling back to
-`DEFAULT_LOCALE`. Dictionaries are typed off `en.json`, so a missing key in
-`vi.json` is a TypeScript error.
-
 Files are camelCase; `page.tsx`, `layout.tsx`, `actions.ts` and `route.ts` keep
 the names Next requires.
+
+## The proxy
+
+Only one, and it is optional:
+
+```bash
+DIRECTUS_ALLOWED_HOSTS=cms.example.com,staging.example.com
+```
+
+The browser never calls Directus directly; Every request goes through
+[src/app/api/directus/[...path]/route.ts](src/app/api/directus/[...path]/route.ts),
+that forwards to the instance named in the request. Unset, that route will
+forward to any `http(s)` host the server can reach — an open proxy. Set it in
+any deployment strangers can load.
