@@ -5,6 +5,8 @@ shadcn/ui, `@directus/sdk`.
 
 ## Getting started
 
+Node 20.9
+
 ```bash
 make install
 make dev
