@@ -9,6 +9,7 @@ import type { TProbeResult } from '@/models/probe';
 import type { TVersionDrift } from '@/utils/version';
 
 import { ConnectionCard } from './connectionCard';
+import { RelaxBanner } from './relaxBanner';
 import { VersionGate } from './versionGate';
 
 type TProps = {
@@ -79,6 +80,8 @@ export const ConnectStep = ({
           onProbe={(result) => onProbe('target', result)}
         />
       </div>
+
+      <RelaxBanner target={target} canRepair={Boolean(probes.target?.ok)} />
 
       {probes.source?.ok && probes.target?.ok && (
         <VersionGate

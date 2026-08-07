@@ -31,6 +31,10 @@ import {
   type TRunUnit,
   type TStage,
 } from '@/models/run';
+import {
+  clearPendingRelax,
+  putPendingRelax,
+} from '@/providers/constraintStore';
 import { clientFor, type TDirectusClient } from '@/providers/directusClient';
 import {
   getBackup,
@@ -40,8 +44,9 @@ import {
   putSecrets,
 } from '@/providers/runStore';
 import { chunkArray } from '@/utils/chunk';
+import { withRetry } from '@/utils/retry';
 
-import { relaxConstraints, restoreConstraints } from './constraints';
+import { applyRelax, planRelax, restoreConstraints } from './constraints';
 import { isSingletonCollection, primaryKeyOf, realColumnsOf } from './data';
 import { readAll, readKeys, readPages } from './paging';
 import { onlyCollections, stripMetaChanges } from './schema';
@@ -98,6 +103,7 @@ const createUnit = (name: string, stage: TStage): TRunUnit => ({
   stage,
   status: 'pending',
   written: 0,
+  deleted: 0,
   error: null,
 });
 
@@ -161,7 +167,7 @@ const execute = async (run: TRun, request: TRunRequest) => {
 
     if (request.collections.length > 0) {
       await runStageUnit(run, 'files', () => copyFiles(run, from, to));
-      await copyData(run, from, to, snapshot);
+      await copyData(run, from, to, snapshot, request.mirrorData);
     }
   } catch (error) {
     log(run, 'error', describe(error));
@@ -295,31 +301,45 @@ const readAllFiles = (client: TDirectusClient) =>
       ) as Promise<TRow[]>,
   );
 
-const inParentOrder = (folders: TRow[]) => {
-  const remaining = [...folders];
-  const written = new Set<string>();
-  const ordered: TRow[] = [];
+export const inParentOrder = (folders: TRow[]) => {
+  const ids = new Set(folders.map((folder) => String(folder.id)));
+  const children = new Map<string, TRow[]>();
+  const roots: TRow[] = [];
 
-  while (remaining.length > 0) {
-    const ready = remaining.filter((folder) => {
-      const parent = folder.parent;
-      return !parent || written.has(String(parent));
-    });
+  for (const folder of folders) {
+    const parent = folder.parent ? String(folder.parent) : null;
 
-    if (ready.length === 0) return [...ordered, ...remaining];
-
-    for (const folder of ready) {
-      written.add(String(folder.id));
-      ordered.push(folder);
+    if (parent === null || !ids.has(parent)) {
+      roots.push(folder);
+      continue;
     }
-    remaining.splice(
-      0,
-      remaining.length,
-      ...remaining.filter((f) => !ready.includes(f)),
-    );
+
+    children.set(parent, [...(children.get(parent) ?? []), folder]);
   }
 
-  return ordered;
+  const ordered: TRow[] = [];
+  const written = new Set<string>();
+
+  for (const root of roots) {
+    const stack = [root];
+
+    while (stack.length > 0) {
+      const folder = stack.pop();
+      if (!folder) break;
+
+      const id = String(folder.id);
+      if (written.has(id)) continue;
+
+      written.add(id);
+      ordered.push(folder);
+      stack.push(...(children.get(id) ?? []));
+    }
+  }
+
+  return [
+    ...ordered,
+    ...folders.filter((folder) => !written.has(String(folder.id))),
+  ];
 };
 
 const insertFolders = async (
@@ -388,6 +408,7 @@ const copyData = async (
   from: TDirectusClient,
   to: TDirectusClient,
   snapshot: SchemaSnapshotOutput,
+  mirrorData: boolean,
 ) => {
   const selected = run.units
     .filter((unit) => unit.stage === 'data')
@@ -424,7 +445,15 @@ const copyData = async (
     : null;
 
   log(run, 'info', 'Relaxing target constraints for the data stage.');
-  const relaxed = await relaxConstraints(to, selected);
+
+  const relaxed = await planRelax(to, selected);
+  putPendingRelax({
+    runId: run.id,
+    targetHost: run.targetHost,
+    relaxedAt: new Date().toISOString(),
+    fields: relaxed,
+  });
+  await applyRelax(to, relaxed);
 
   try {
     for (const plan of plans) {
@@ -434,11 +463,8 @@ const copyData = async (
       if (unit) unit.status = 'running';
 
       try {
-        const rows = await readAll(
-          from,
-          plan.collection,
-          plan.primaryKey,
-          plan.columns,
+        const rows = await withRetry(() =>
+          readAll(from, plan.collection, plan.primaryKey, plan.columns),
         );
         rowsByCollection.set(plan.collection, rows);
 
@@ -491,9 +517,63 @@ const copyData = async (
         failUnit(run, plan.collection, error);
       }
     }
+
+    if (mirrorData) {
+      await mirrorDeletes(run, to, plans, rowsByCollection);
+    }
   } finally {
     await restoreConstraints(to, relaxed);
+    clearPendingRelax(run.id);
     log(run, 'info', `Restored ${relaxed.length} target constraints.`);
+  }
+};
+
+const mirrorDeletes = async (
+  run: TRun,
+  to: TDirectusClient,
+  plans: TCollectionPlan[],
+  rowsByCollection: Map<string, TRow[]>,
+) => {
+  for (const plan of plans) {
+    if (run.stopRequested) {
+      log(
+        run,
+        'warn',
+        `Stopped before mirroring deletes in ${plan.collection}.`,
+      );
+      break;
+    }
+
+    const unit = unitOf(run, plan.collection);
+    if (!unit || unit.status === 'failed' || plan.isSingleton) continue;
+
+    try {
+      const sourceKeys = new Set(
+        (rowsByCollection.get(plan.collection) ?? []).map((row) =>
+          String(row[plan.primaryKey]),
+        ),
+      );
+
+      const targetKeys = await withRetry(() =>
+        readKeys(to, plan.collection, plan.primaryKey),
+      );
+
+      const extra = [...targetKeys].filter((key) => !sourceKeys.has(key));
+      if (extra.length === 0) continue;
+
+      for (const batch of chunkArray(extra, WRITE_BATCH_SIZE)) {
+        await withRetry(() => to.request(deleteItems(plan.collection, batch)));
+        unit.deleted += batch.length;
+      }
+
+      log(
+        run,
+        'warn',
+        `${plan.collection}: deleted ${unit.deleted} rows only in the target`,
+      );
+    } catch (error) {
+      failUnit(run, plan.collection, error);
+    }
   }
 };
 
@@ -513,7 +593,7 @@ const fillCollection = async (
   let written = 0;
 
   for (const batch of chunkArray(rows.map(blankAudit), WRITE_BATCH_SIZE)) {
-    await to.request(updateItemsBatch(plan.collection, batch));
+    await withRetry(() => to.request(updateItemsBatch(plan.collection, batch)));
     written += batch.length;
 
     unit.written = written;
@@ -531,11 +611,11 @@ const insertMissing = async (
 ) => {
   if (rows.length === 0) return 0;
 
-  const existing = await readKeys(to, collection, primaryKey);
+  const existing = await withRetry(() => readKeys(to, collection, primaryKey));
   const missing = rows.filter((row) => !existing.has(String(row[primaryKey])));
 
   for (const batch of chunkArray(missing, WRITE_BATCH_SIZE)) {
-    await to.request(createItems(collection, batch));
+    await withRetry(() => to.request(createItems(collection, batch)));
   }
 
   run.createdKeys[collection] = [
@@ -627,7 +707,15 @@ export const rollbackRun = async (run: TRun) => {
   log(run, 'info', 'Rollback started.');
 
   const collections = Object.keys(backup.rows);
-  const relaxed = await relaxConstraints(to, collections);
+
+  const relaxed = await planRelax(to, collections);
+  putPendingRelax({
+    runId: run.id,
+    targetHost: run.targetHost,
+    relaxedAt: new Date().toISOString(),
+    fields: relaxed,
+  });
+  await applyRelax(to, relaxed);
 
   try {
     for (const [collection, keys] of Object.entries(run.createdKeys)) {
@@ -649,6 +737,19 @@ export const rollbackRun = async (run: TRun) => {
         continue;
       }
 
+      const primaryKey = primaryKeyOf(snapshot, collection);
+      const revived = await insertMissing(
+        run,
+        to,
+        collection,
+        primaryKey,
+        rows.map((row) => ({ [primaryKey]: row[primaryKey] })),
+      );
+
+      if (revived > 0) {
+        log(run, 'info', `${collection}: recreated ${revived} deleted rows`);
+      }
+
       for (const batch of chunkArray(
         rows.map(withoutAuditUsers),
         WRITE_BATCH_SIZE,
@@ -666,6 +767,7 @@ export const rollbackRun = async (run: TRun) => {
     throw error;
   } finally {
     await restoreConstraints(to, relaxed);
+    clearPendingRelax(run.id);
   }
 
   return run;

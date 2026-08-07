@@ -14,6 +14,10 @@ export const MAX_VIOLATIONS_SHOWN = 10;
 
 export const RUN_POLL_INTERVAL_MS = 1000;
 
+export const RETRY_ATTEMPTS = 3;
+
+export const RETRY_BASE_DELAY_MS = 500;
+
 export const PROBE_TIMEOUT_MS = 10_000;
 
 export const AUDIT_FIELDS = [

@@ -165,8 +165,10 @@ export const MigrationWizard = () => {
             target={ends.target}
             rows={plan.data}
             selection={picked.data}
+            mirrorData={picked.mirrorData}
             confirmedSql={picked.confirmedSql}
             onSelectionChange={picked.setData}
+            onMirrorDataChange={picked.setMirrorData}
             onConfirmedSqlChange={picked.setConfirmedSql}
             isRecomparing={comparison.isBuilding}
             onRecompare={() => comparison.build('data')}
@@ -181,6 +183,7 @@ export const MigrationWizard = () => {
             target={ends.target}
             plan={plan}
             dataSelection={picked.data}
+            mirrorData={picked.mirrorData}
             sequencesConfirmed={Boolean(picked.confirmedSql)}
             force={ends.force}
             onBack={() => goTo('data')}

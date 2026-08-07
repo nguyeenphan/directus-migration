@@ -16,6 +16,7 @@ import { useRecordBrowser } from '@/hooks/useRecordBrowser';
 import { useTranslate } from '@/hooks/useTranslate';
 import type { TConnection } from '@/models/connection';
 import {
+  isDeleteOnly,
   isEmptyChange,
   sequenceResetsIn,
   type TDataChange,
@@ -33,8 +34,10 @@ type TProps = {
   target: TConnection;
   rows: TDataChange[];
   selection: Set<string>;
+  mirrorData: boolean;
   confirmedSql: string;
   onSelectionChange: (selection: Set<string>) => void;
+  onMirrorDataChange: (mirror: boolean) => void;
   onConfirmedSqlChange: (sql: string) => void;
   isRecomparing: boolean;
   onRecompare: () => void;
@@ -47,8 +50,10 @@ export const DataStep = ({
   target,
   rows,
   selection,
+  mirrorData,
   confirmedSql,
   onSelectionChange,
+  onMirrorDataChange,
   onConfirmedSqlChange,
   isRecomparing,
   onRecompare,
@@ -89,6 +94,19 @@ export const DataStep = ({
     onSelectionChange(next);
   };
 
+  const setMirror = (mirror: boolean) => {
+    onMirrorDataChange(mirror);
+
+    const next = new Set(selection);
+
+    for (const row of rows.filter(isDeleteOnly)) {
+      if (mirror) next.add(row.collection);
+      else next.delete(row.collection);
+    }
+
+    onSelectionChange(next);
+  };
+
   if (rows.every(isEmptyChange)) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
@@ -121,6 +139,7 @@ export const DataStep = ({
           <CollectionList
             rows={rows}
             selection={selection}
+            mirrorData={mirrorData}
             active={browser.active}
             onToggle={toggle}
             onInspect={browser.inspect}
@@ -205,6 +224,26 @@ export const DataStep = ({
               {translate('data-sequence-confirm')}
             </label>
           </div>
+        </section>
+      )}
+
+      {totals.delete > 0 && (
+        <section className="border border-destructive px-3 py-2">
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox
+              checked={mirrorData}
+              onCheckedChange={setMirror}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-semibold text-destructive">
+                {translate('data-mirror-title', { count: totals.delete })}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {translate('data-mirror-detail')}
+              </span>
+            </span>
+          </label>
         </section>
       )}
 

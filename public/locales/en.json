@@ -77,6 +77,9 @@
   "version-unknown-detail": "One of the versions could not be read, so the gap cannot be judged. Test both connections again.",
   "version-vendor-title": "The databases are different",
   "version-vendor-detail": "The two environments run different database engines, and a schema snapshot from one cannot be applied to the other.",
+  "relax-pending-title": "This target still has relaxed constraints",
+  "relax-pending-description": "A run loosened NOT NULL, required and UNIQUE on this target and never put them back — the tab was closed or the page reloaded mid-run. Repair before doing anything else.",
+  "relax-pending-repair": "Repair constraints",
   "plan-building": "Comparing environments…",
   "plan-failed": "The comparison failed",
   "plan-generated-at": "Compared at {{time}}",
@@ -155,6 +158,9 @@
   "apply-order-files-detail": "metadata only",
   "apply-order-data": "Write the data",
   "apply-order-data-detail": "{{records}} records across {{collections}} collections",
+  "apply-order-mirror": "Delete rows the source does not have",
+  "apply-order-mirror-detail": "{{records}} rows removed",
+  "apply-tile-deletes": "Rows deleted",
   "apply-destructive-warning_one": "{{count}} change removes data and cannot be undone automatically.",
   "apply-destructive-warning_other": "{{count}} changes remove data and cannot be undone automatically.",
   "apply-backup-mandatory": "A backup of the target is captured first. This cannot be turned off.",
@@ -204,5 +210,8 @@
   "data-sequence-title": "Reset these sequences on the target first",
   "data-sequence-detail": "Run this on the target database before migrating. Note: migrated rows carry their source ids, so the sequences will need running again after the run finishes — copy the script below and run it manually.",
   "data-sequence-confirm": "I have run this script on the target database.",
+  "data-mirror-title": "Mirror data: delete {{count}} rows the source does not have",
+  "data-mirror-detail": "Runs after every row has been written, on the selected collections only. The rows are in the backup, so a rollback brings them back — but nothing else will.",
+  "data-delete-only-disabled": "Only rows the target has and the source does not. Turn on \"mirror data\" to remove them.",
   "data-open-value": "Double-click to see the full value"
 }

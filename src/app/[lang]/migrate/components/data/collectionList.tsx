@@ -9,6 +9,7 @@ import { useCollectionFilter } from '@/hooks/useCollectionFilter';
 import { useTranslate } from '@/hooks/useTranslate';
 import {
   groupTotals,
+  isDeleteOnly,
   type TCollectionGroup,
   type TDataChange,
 } from '@/models/plan';
@@ -17,20 +18,22 @@ import { cn } from '@/utils/cn';
 type TProps = {
   rows: TDataChange[];
   selection: Set<string>;
+  mirrorData: boolean;
   active: string | null;
 
   onToggle: (collections: string[], isSelected: boolean) => void;
   onInspect: (collection: string) => void;
 };
 
-const groupMembers = (group: TCollectionGroup) => [
-  ...(group.own ? [group.own.collection] : []),
-  ...group.derived.map((row) => row.collection),
+const groupMembers = (group: TCollectionGroup): TDataChange[] => [
+  ...(group.own ? [group.own] : []),
+  ...group.derived,
 ];
 
 export const CollectionList = ({
   rows,
   selection,
+  mirrorData,
   active,
   onToggle,
   onInspect,
@@ -38,6 +41,10 @@ export const CollectionList = ({
   const translate = useTranslate();
   const { query, changed, skipped, setQuery, isExpanded, toggleExpand } =
     useCollectionFilter(rows);
+
+  const inert = (row: TDataChange) => !mirrorData && isDeleteOnly(row);
+
+  const inertLabel = translate('data-delete-only-disabled');
 
   return (
     <div className="flex h-full min-h-0 flex-col border">
@@ -59,27 +66,36 @@ export const CollectionList = ({
           const totals = groupTotals(group);
           const isOpen = isExpanded(group.parent);
 
+          const members = groupMembers(group);
+          const selectable = members
+            .filter((row) => !inert(row))
+            .map((row) => row.collection);
+          const groupInert = selectable.length === 0;
+
           return (
             <li key={group.parent}>
               <div
                 className={cn(
                   'group flex items-center gap-1 px-2 hover:bg-accent/60',
                   active === group.parent && 'bg-accent',
-                  !groupMembers(group).some((name) => selection.has(name)) &&
+                  !members.some((row) => selection.has(row.collection)) &&
                     'opacity-40',
                 )}
               >
                 <Checkbox
-                  checked={groupMembers(group).every((name) =>
-                    selection.has(name),
-                  )}
-                  onCheckedChange={(checked) =>
-                    onToggle(groupMembers(group), checked)
+                  checked={
+                    !groupInert &&
+                    selectable.every((name) => selection.has(name))
                   }
-                  aria-label={translate('data-select-one', {
-                    name: group.parent,
-                  })}
-                  className="opacity-0 transition-none group-hover:opacity-100 data-checked:opacity-100"
+                  disabled={groupInert}
+                  onCheckedChange={(checked) => onToggle(selectable, checked)}
+                  aria-label={
+                    groupInert
+                      ? inertLabel
+                      : translate('data-select-one', { name: group.parent })
+                  }
+                  title={groupInert ? inertLabel : undefined}
+                  className="opacity-0 transition-none group-hover:opacity-100 data-checked:opacity-100 disabled:opacity-100"
                 />
 
                 {group.derived.length > 0 ? (
@@ -126,14 +142,20 @@ export const CollectionList = ({
                     )}
                   >
                     <Checkbox
-                      checked={selection.has(row.collection)}
+                      checked={!inert(row) && selection.has(row.collection)}
+                      disabled={inert(row)}
                       onCheckedChange={(checked) =>
                         onToggle([row.collection], checked)
                       }
-                      aria-label={translate('data-select-one', {
-                        name: row.collection,
-                      })}
-                      className="opacity-0 transition-none group-hover:opacity-100 data-checked:opacity-100"
+                      aria-label={
+                        inert(row)
+                          ? inertLabel
+                          : translate('data-select-one', {
+                              name: row.collection,
+                            })
+                      }
+                      title={inert(row) ? inertLabel : undefined}
+                      className="opacity-0 transition-none group-hover:opacity-100 data-checked:opacity-100 disabled:opacity-100"
                     />
                     <span className="w-3.5" />
                     <button

@@ -19,6 +19,7 @@ type TProps = {
   target: TConnection;
   plan: TPlan;
   dataSelection: Set<string>;
+  mirrorData: boolean;
   sequencesConfirmed: boolean;
   force: boolean;
   onBack: () => void;
@@ -29,6 +30,7 @@ export const ApplyStep = ({
   target,
   plan,
   dataSelection,
+  mirrorData,
   sequencesConfirmed,
   force,
   onBack,
@@ -49,9 +51,12 @@ export const ApplyStep = ({
         (total, row) => total + row.toCreate + (row.toUpdate ?? 0),
         0,
       ),
+      deletes: mirrorData
+        ? selected.reduce((total, row) => total + row.extraInTarget, 0)
+        : 0,
       sequences: selected.length,
     };
-  }, [plan, dataSelection]);
+  }, [plan, dataSelection, mirrorData]);
 
   const applyRun = useApplyRun({
     source,
@@ -59,6 +64,7 @@ export const ApplyStep = ({
     collections,
     schemaChanges: plan.schema.collections.length,
     force,
+    mirrorData,
   });
 
   if (applyRun.run) {
@@ -76,11 +82,16 @@ export const ApplyStep = ({
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
       <h1 className="text-lg font-semibold">{translate('apply-title')}</h1>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-3">
         <Tile label={translate('apply-tile-records')} value={counts.records} />
         <Tile
           label={translate('apply-tile-collections')}
           value={collections.length}
+        />
+        <Tile
+          label={translate('apply-tile-deletes')}
+          value={counts.deletes}
+          tone="danger"
         />
       </section>
 
@@ -107,6 +118,15 @@ export const ApplyStep = ({
               collections: collections.length,
             })}
           />
+          {mirrorData && (
+            <Step
+              index={4}
+              label={translate('apply-order-mirror')}
+              detail={translate('apply-order-mirror-detail', {
+                records: counts.deletes,
+              })}
+            />
+          )}
         </ol>
       </section>
 
@@ -163,7 +183,7 @@ export const ApplyStep = ({
         open={applyRun.needsConfirmation}
         host={hostOf(target.url)}
         recordCount={counts.records}
-        deleteCount={0}
+        deleteCount={counts.deletes}
         onOpenChange={applyRun.setNeedsConfirmation}
         onConfirm={applyRun.start}
       />

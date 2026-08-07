@@ -13,12 +13,14 @@ export const useApplyRun = ({
   collections,
   schemaChanges,
   force,
+  mirrorData,
 }: {
   source: TConnection;
   target: TConnection;
   collections: string[];
   schemaChanges: number;
   force: boolean;
+  mirrorData: boolean;
 }) => {
   const [report, setReport] = useState<TDryRunReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export const useApplyRun = ({
           applySchema: false,
           schemaCollections: [],
           force,
+          mirrorData,
         });
 
         setNeedsConfirmation(false);

@@ -148,6 +148,9 @@ export type TPlan = {
   data: TDataChange[];
 };
 
+export const isDeleteOnly = (row: TDataChange) =>
+  row.toCreate === 0 && (row.toUpdate ?? 0) === 0 && row.extraInTarget > 0;
+
 export const isEmptyChange = (row: TDataChange) =>
   row.toCreate === 0 && row.extraInTarget === 0 && (row.toUpdate ?? 0) === 0;
 

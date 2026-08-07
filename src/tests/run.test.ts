@@ -41,6 +41,7 @@ const unit = (name: string, stage: TRun['units'][number]['stage']) => ({
   stage,
   status: 'done' as const,
   written: 1,
+  deleted: 0,
   error: null,
 });
 

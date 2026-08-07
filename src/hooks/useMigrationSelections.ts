@@ -8,17 +8,20 @@ export const useMigrationSelections = () => {
   const [schema, setSchema] = useState<Set<string>>(new Set());
   const [applySchema, setApplySchema] = useState(true);
   const [data, setData] = useState<Set<string>>(new Set());
+  const [mirrorData, setMirrorData] = useState(false);
   const [confirmedSql, setConfirmedSql] = useState('');
 
   return {
     schema,
     applySchema,
     data,
+    mirrorData,
     confirmedSql,
 
     setSchema,
     setApplySchema,
     setData,
+    setMirrorData,
     setConfirmedSql,
 
     resetFor: (plan: TPlan) => {
@@ -32,6 +35,7 @@ export const useMigrationSelections = () => {
             .map((row) => row.collection),
         ),
       );
+      setMirrorData(false);
       setConfirmedSql('');
     },
   };

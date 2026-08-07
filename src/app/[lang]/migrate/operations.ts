@@ -1,3 +1,4 @@
+import { restoreConstraints } from '@/api/constraints';
 import { getRecordChanges } from '@/api/detail';
 import { dryRun } from '@/api/dryRun';
 import { buildPlan } from '@/api/plan';
@@ -9,7 +10,13 @@ import type { TDryRunReport } from '@/models/dryRun';
 import type { TPlan, TRecordChange } from '@/models/plan';
 import type { TProbeResult } from '@/models/probe';
 import type { TRun } from '@/models/run';
+import {
+  clearPendingRelax,
+  type TPendingRelax,
+} from '@/providers/constraintStore';
+import { clientFor } from '@/providers/directusClient';
 import { getBackup, getRun } from '@/providers/runStore';
+import { withResult } from '@/utils/result';
 
 export async function testConnection(
   connection: unknown,
@@ -72,6 +79,7 @@ export async function beginRun({
   applySchema,
   schemaCollections,
   force,
+  mirrorData,
 }: {
   source: unknown;
   target: unknown;
@@ -79,6 +87,7 @@ export async function beginRun({
   applySchema: boolean;
   schemaCollections: string[];
   force: boolean;
+  mirrorData: boolean;
 }): Promise<{ id: string }> {
   const from = parseConnection(source);
   const to = parseConnection(target);
@@ -94,6 +103,7 @@ export async function beginRun({
     applySchema,
     schemaCollections,
     force,
+    mirrorData,
   });
 
   return { id: run.id };
@@ -123,6 +133,21 @@ export async function rollback(id: string): Promise<TResult<TRun>> {
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+export async function repairRelax(
+  connection: unknown,
+  pending: TPendingRelax,
+): Promise<TResult<number>> {
+  return withResult(async () => {
+    await restoreConstraints(
+      clientFor(parseConnection(connection)),
+      pending.fields,
+    );
+    clearPendingRelax(pending.runId);
+
+    return pending.fields.length;
+  });
 }
 
 export async function readBackup(id: string): Promise<string | null> {

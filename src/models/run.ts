@@ -13,6 +13,7 @@ export type TRunUnit = {
   status: TUnitStatus;
 
   written: number;
+  deleted: number;
   error: string | null;
 };
 
@@ -43,6 +44,8 @@ export type TRunRequest = {
   applySchema: boolean;
   schemaCollections: string[];
   force: boolean;
+
+  mirrorData: boolean;
 };
 
 export type TBackup = {

@@ -76,6 +76,9 @@
   "version-unknown-detail": "Không đọc được một trong hai version nên không đánh giá được mức lệch. Test lại cả hai kết nối.",
   "version-vendor-title": "Hai database khác nhau",
   "version-vendor-detail": "Hai môi trường chạy hai loại database khác nhau, snapshot schema của bên này không áp được sang bên kia.",
+  "relax-pending-title": "Đích này còn constraint đang bị nới",
+  "relax-pending-description": "Một lần chạy đã nới NOT NULL, required và UNIQUE trên đích này rồi không khôi phục — tab bị đóng hoặc trang reload giữa chừng. Hãy sửa trước khi làm bất cứ việc gì khác.",
+  "relax-pending-repair": "Khôi phục constraint",
   "plan-building": "Đang so sánh hai môi trường…",
   "plan-failed": "So sánh thất bại",
   "plan-generated-at": "So sánh lúc {{time}}",
@@ -146,6 +149,9 @@
   "apply-order-files-detail": "chỉ metadata",
   "apply-order-data": "Ghi dữ liệu",
   "apply-order-data-detail": "{{records}} bản ghi thuộc {{collections}} collection",
+  "apply-order-mirror": "Xoá row mà source không có",
+  "apply-order-mirror-detail": "xoá {{records}} row",
+  "apply-tile-deletes": "Row bị xoá",
   "apply-destructive-warning_other": "{{count}} thao tác xoá dữ liệu — không thể hoàn tác tự động.",
   "apply-backup-mandatory": "Backup của môi trường đích luôn được tạo trước. Không thể tắt.",
   "apply-reviewed": "Tôi đã review toàn bộ thay đổi ở trên.",
@@ -192,5 +198,8 @@
   "data-sequence-title": "Reset sequence trên target trước",
   "data-sequence-detail": "Chạy đoạn này trên database target trước khi migrate. Lưu ý: row được migrate mang id từ source, nên sau khi chạy xong vẫn cần chạy lại — màn kết quả sẽ hiện script cuối cùng.",
   "data-sequence-confirm": "Tôi đã chạy script này trên database target.",
+  "data-mirror-title": "Mirror data: xoá {{count}} row mà source không có",
+  "data-mirror-detail": "Chạy sau khi mọi row đã được ghi, chỉ trên các collection đã chọn. Row nằm trong backup nên rollback lấy lại được — ngoài ra không còn cách nào khác.",
+  "data-delete-only-disabled": "Chỉ có row target có mà source không có. Bật \"mirror data\" để xoá chúng.",
   "data-open-value": "Nháy đúp để xem đầy đủ giá trị"
 }

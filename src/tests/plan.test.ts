@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
   findParent,
   groupCollections,
+  isDeleteOnly,
   sequenceResetsIn,
   type TDataChange,
 } from '@/models/plan';
@@ -19,6 +20,35 @@ const dataRow = (
   extraInTarget: 0,
   primaryKey: 'id',
   hasAutoIncrement,
+});
+
+const counted = (
+  toCreate: number,
+  toUpdate: number,
+  extraInTarget: number,
+): TDataChange => ({
+  ...dataRow('partner', false),
+  toCreate,
+  toUpdate,
+  extraInTarget,
+});
+
+test('a collection with nothing but extras is delete-only', () => {
+  assert.equal(isDeleteOnly(counted(0, 0, 2)), true);
+});
+
+test('any row to write means it is not delete-only', () => {
+  assert.equal(isDeleteOnly(counted(1, 0, 2)), false);
+  assert.equal(isDeleteOnly(counted(0, 1, 2)), false);
+});
+
+test('a collection with no extras is not delete-only', () => {
+  assert.equal(isDeleteOnly(counted(0, 0, 0)), false);
+  assert.equal(isDeleteOnly(counted(3, 0, 0)), false);
+});
+
+test('an unknown update count does not read as delete-only', () => {
+  assert.equal(isDeleteOnly({ ...counted(0, 0, 2), toUpdate: null }), true);
 });
 
 test('only selected auto-increment collections need a sequence reset', () => {

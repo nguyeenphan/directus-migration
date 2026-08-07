@@ -2,7 +2,7 @@ import { readFields, updateField } from '@directus/sdk';
 
 import type { TDirectusClient } from '@/providers/directusClient';
 
-type TRelaxedField = {
+export type TRelaxedField = {
   collection: string;
   field: string;
   meta: Record<string, unknown>;
@@ -65,13 +65,18 @@ export const relaxableFields = (
       schema: { ...field.schema },
     }));
 
-export const relaxConstraints = async (
+export const planRelax = async (
   client: TDirectusClient,
   collections: string[],
 ): Promise<TRelaxedField[]> => {
   const fields = (await client.request(readFields())) as TFieldRecord[];
-  const relaxed = relaxableFields(fields, new Set(collections));
+  return relaxableFields(fields, new Set(collections));
+};
 
+export const applyRelax = async (
+  client: TDirectusClient,
+  relaxed: TRelaxedField[],
+) => {
   await Promise.all(
     relaxed.map((field) =>
       client.request(
@@ -86,8 +91,6 @@ export const relaxConstraints = async (
       ),
     ),
   );
-
-  return relaxed;
 };
 
 export const restoreConstraints = async (

@@ -34,6 +34,7 @@ export const useSchemaRun = ({
           applySchema: true,
           schemaCollections: [...collections],
           force,
+          mirrorData: false,
         });
 
         setNeedsConfirmation(false);
