@@ -201,5 +201,9 @@
   "data-mirror-title": "Mirror data: xoá {{count}} row mà source không có",
   "data-mirror-detail": "Chạy sau khi mọi row đã được ghi, chỉ trên các collection đã chọn. Row nằm trong backup nên rollback lấy lại được — ngoài ra không còn cách nào khác.",
   "data-delete-only-disabled": "Chỉ có row target có mà source không có. Bật \"mirror data\" để xoá chúng.",
-  "data-open-value": "Nháy đúp để xem đầy đủ giá trị"
+  "data-open-value": "Nháy đúp để xem đầy đủ giá trị",
+  "data-generate-sql": "Generate SQL script",
+  "data-sql-generated": "Đã generate xong SQL script",
+  "data-view-sql": "Xem SQL script",
+  "data-sql-script-title": "SQL script"
 }

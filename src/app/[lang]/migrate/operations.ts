@@ -4,10 +4,11 @@ import { dryRun } from '@/api/dryRun';
 import { buildPlan } from '@/api/plan';
 import { probeConnection } from '@/api/probe';
 import { requestStop, rollbackRun, startRun } from '@/api/runner';
+import { buildSqlScript } from '@/api/sqlScript';
 import type { TResult } from '@/models/common';
 import { parseConnection } from '@/models/connection';
 import type { TDryRunReport } from '@/models/dryRun';
-import type { TPlan, TRecordChange } from '@/models/plan';
+import type { TDataChange, TPlan, TRecordChange } from '@/models/plan';
 import type { TProbeResult } from '@/models/probe';
 import type { TRun } from '@/models/run';
 import {
@@ -148,6 +149,22 @@ export async function repairRelax(
 
     return pending.fields.length;
   });
+}
+
+export async function generateSqlScript(
+  source: unknown,
+  target: unknown,
+  rows: TDataChange[],
+  selection: string[],
+  mirrorData: boolean,
+): Promise<TResult<string>> {
+  return buildSqlScript(
+    parseConnection(source),
+    parseConnection(target),
+    rows,
+    new Set(selection),
+    mirrorData,
+  );
 }
 
 export async function readBackup(id: string): Promise<string | null> {

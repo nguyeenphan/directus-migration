@@ -213,5 +213,9 @@
   "data-mirror-title": "Mirror data: delete {{count}} rows the source does not have",
   "data-mirror-detail": "Runs after every row has been written, on the selected collections only. The rows are in the backup, so a rollback brings them back — but nothing else will.",
   "data-delete-only-disabled": "Only rows the target has and the source does not. Turn on \"mirror data\" to remove them.",
-  "data-open-value": "Double-click to see the full value"
+  "data-open-value": "Double-click to see the full value",
+  "data-generate-sql": "Generate SQL script",
+  "data-sql-generated": "SQL script generated",
+  "data-view-sql": "View SQL script",
+  "data-sql-script-title": "SQL script"
 }

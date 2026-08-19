@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Loader2, TriangleAlert } from 'lucide-react';
+import { Check, Info, Loader2, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { CopyButton } from '@/components/common/copyButton';
@@ -11,6 +11,12 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CHANGE_GLYPH, CHANGE_TEXT } from '@/constants/changeStyles';
 import { useRecordBrowser } from '@/hooks/useRecordBrowser';
 import { useTranslate } from '@/hooks/useTranslate';
@@ -28,6 +34,7 @@ import { RecompareButton } from '../recompareButton';
 import { CollectionList } from './collection/collectionList';
 import { RecordDetail } from './record/recordDetail';
 import { RecordList } from './record/recordList';
+import { SqlScriptButton } from './sqlScriptButton';
 
 type TProps = {
   source: TConnection;
@@ -199,18 +206,27 @@ export const DataStep = ({
             <p className="text-sm font-semibold text-warning">
               {translate('data-sequence-title')}
             </p>
-            <CopyButton
-              className="ml-auto"
-              label={translate('data-sequence-title')}
-              text={() => sequenceSql}
-            />
+            <div className="ml-auto flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="text-muted-foreground transition-colors hover:text-foreground">
+                    <Info className="size-3.5" />
+                    <span className="sr-only">
+                      {translate('data-sequence-detail')}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{translate('data-sequence-detail')}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <CopyButton
+                label={translate('data-sequence-title')}
+                text={() => sequenceSql}
+              />
+            </div>
           </div>
 
           <div className="px-3 py-2">
-            <p className="text-xs text-muted-foreground">
-              {translate('data-sequence-detail')}
-            </p>
-            <pre className="identifier mt-2 max-h-40 overflow-auto bg-muted p-2 text-xs">
+            <pre className="identifier max-h-40 overflow-auto bg-muted p-2 text-xs">
               {sequenceSql}
             </pre>
             <label className="mt-2 flex items-start gap-2 text-sm">
@@ -261,7 +277,14 @@ export const DataStep = ({
           {translate('data-selected', { count: selection.size })}
         </span>
 
-        <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-2">
+          <SqlScriptButton
+            source={source}
+            target={target}
+            rows={rows}
+            selection={selection}
+            mirrorData={mirrorData}
+          />
           <RecompareButton
             isRecomparing={isRecomparing}
             onRecompare={onRecompare}
