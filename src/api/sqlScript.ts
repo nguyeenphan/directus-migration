@@ -13,6 +13,7 @@ import { asRows } from '@/utils/rows';
 
 import { fingerprint, orMissing, realColumnsOf } from './data';
 import { readAll, readPages } from './paging';
+import { readColumns, unknownColumns } from './schema';
 
 const AUDIT = new Set<string>(AUDIT_FIELDS);
 
@@ -87,6 +88,7 @@ type TCollectionDiff = {
   newRows: TRow[];
   changedRows: TRow[];
   extraKeys: string[];
+  skipped: string[];
 };
 
 export const buildSqlScript = (
@@ -111,8 +113,16 @@ export const buildSqlScript = (
     }
 
     const fileRows = await referencedFiles(from, to, diffs);
+    const fileColumns = await readColumns(to, SYSTEM_COLLECTIONS.files);
+    const skippedFileColumns = unknownColumns(FILE_COLUMNS, fileColumns);
+
     const fileStatements = fileRows.map((row) =>
-      insertRow(SYSTEM_COLLECTIONS.files, 'id', FILE_COLUMNS, row),
+      insertRow(
+        SYSTEM_COLLECTIONS.files,
+        'id',
+        FILE_COLUMNS.filter((name) => !skippedFileColumns.includes(name)),
+        row,
+      ),
     );
 
     const stage1 = diffs.flatMap((diff) =>
@@ -136,7 +146,25 @@ export const buildSqlScript = (
         : [deleteStatement(diff.collection, diff.primaryKey, diff.extraKeys)],
     );
 
+    const warnings = [
+      ...diffs
+        .filter((diff) => diff.skipped.length > 0)
+        .map(
+          (diff) =>
+            `-- WARNING: ${diff.collection} — the target has no column for ` +
+            `${diff.skipped.join(', ')}. That content is not in this script.`,
+        ),
+
+      ...(skippedFileColumns.length > 0
+        ? [
+            `-- WARNING: ${SYSTEM_COLLECTIONS.files} — the target has no ` +
+              `column for ${skippedFileColumns.join(', ')}. Those values are omitted.`,
+          ]
+        : []),
+    ];
+
     const sections = [
+      warnings.length > 0 ? warnings.join('\n') : null,
       section('File metadata (directus_files)', fileStatements),
       section('Stage 1: create missing rows', stage1),
       section('Stage 2: write column values', stage2),
@@ -159,7 +187,9 @@ const diffCollection = async (
   mirrorData: boolean,
 ): Promise<TCollectionDiff> => {
   const { collection, primaryKey } = row;
-  const columns = realColumnsOf(snapshot, collection);
+  const wanted = realColumnsOf(snapshot, collection);
+  const skipped = unknownColumns(wanted, await readColumns(to, collection));
+  const columns = wanted.filter((name) => !skipped.includes(name));
 
   const sourceRows = await readAll(from, collection, primaryKey, columns);
   const targetRows = (await orMissing(readAll(to, collection, primaryKey, columns))) ?? [];
@@ -186,7 +216,15 @@ const diffCollection = async (
     extraKeys = [...targetByKey.keys()].filter((key) => !sourceKeys.has(key));
   }
 
-  return { collection, primaryKey, columns, newRows, changedRows, extraKeys };
+  return {
+    collection,
+    primaryKey,
+    columns,
+    newRows,
+    changedRows,
+    extraKeys,
+    skipped,
+  };
 };
 
 const referencedFiles = async (

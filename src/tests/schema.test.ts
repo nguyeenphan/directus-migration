@@ -3,10 +3,15 @@ import { test } from 'node:test';
 
 import {
   attributeChanges,
+  compatibilityOf,
   kindOfEntry,
   onlyCollections,
+  pruneUnknownMeta,
   stripMetaChanges,
+  unknownColumns,
+  withoutUnknownKeys,
 } from '@/api/schema';
+import { unknownMetaKeys } from '@/models/plan';
 
 const DIRECTION_DIFF = {
   collection: 'languages',
@@ -169,4 +174,144 @@ test('onlyCollections drops entries for unticked collections', () => {
   assert.deepEqual(filtered.collections, [{ collection: 'keep' }]);
   assert.deepEqual(filtered.fields, []);
   assert.deepEqual(filtered.relations, []);
+});
+
+const snapshotOf = (
+  directus: string,
+  vendor: string,
+  meta: Record<string, unknown>,
+) =>
+  ({
+    version: 1,
+    directus,
+    vendor,
+    collections: [{ collection: 'article', meta }],
+    fields: [{ collection: 'article', field: 'title', meta: { sort: 1 } }],
+    relations: [],
+  }) as unknown as Parameters<typeof compatibilityOf>[0];
+
+const V12 = snapshotOf('11.17.1', 'postgres', {
+  icon: 'article',
+  status: 'active',
+  autosave_revision_interval: null,
+});
+
+const V11 = snapshotOf('11.17.4', 'postgres', { icon: 'article' });
+
+test('meta drift is read from the snapshots, not the reported versions', () => {
+  const compatibility = compatibilityOf(V12, V11);
+
+  assert.deepEqual(compatibility.unknownMeta.collections, [
+    'autosave_revision_interval',
+    'status',
+  ]);
+  assert.deepEqual(compatibility.unknownMeta.fields, []);
+});
+
+test('a downgraded source keeps the columns of the version it came from', () => {
+  // Both report 11.17.x, yet the source still carries its v12 columns.
+  const compatibility = compatibilityOf(V12, V11);
+
+  assert.equal(compatibility.sourceVersion, '11.17.1');
+  assert.equal(compatibility.targetVersion, '11.17.4');
+  assert.ok(unknownMetaKeys(compatibility).length > 0);
+});
+
+test('an empty target teaches us nothing, so nothing drifts', () => {
+  const empty = snapshotOf('11.17.4', 'postgres', {});
+  (empty as { collections: unknown[] }).collections = [];
+
+  assert.deepEqual(compatibilityOf(V12, empty).unknownMeta.collections, []);
+});
+
+test('unknown meta keys are pruned off newly created objects', () => {
+  const pruned = pruneUnknownMeta(
+    {
+      collections: [
+        {
+          collection: 'article',
+          diff: [
+            {
+              kind: 'N',
+              rhs: {
+                collection: 'article',
+                meta: { icon: 'article', status: 'active' },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    { collections: ['status'], fields: [], relations: [] },
+  );
+
+  const rhs = pruned.collections?.[0]?.diff?.[0]?.rhs as {
+    meta: Record<string, unknown>;
+  };
+
+  assert.deepEqual(rhs.meta, { icon: 'article' });
+});
+
+test('pruning leaves a diff alone when the target knows every key', () => {
+  const diff = {
+    collections: [
+      { collection: 'article', diff: [{ kind: 'N', rhs: { meta: { x: 1 } } }] },
+    ],
+  };
+
+  assert.deepEqual(
+    pruneUnknownMeta(diff, { collections: [], fields: [], relations: [] }),
+    diff,
+  );
+});
+
+test('a fresh target with no collections is still measured, via its columns', () => {
+  const fresh = snapshotOf('11.17.4', 'postgres', {});
+  (fresh as { collections: unknown[] }).collections = [];
+
+  const columns = {
+    collections: new Set(['icon']),
+    fields: new Set<string>(),
+    relations: new Set<string>(),
+  };
+
+  assert.deepEqual(compatibilityOf(V12, fresh, columns).unknownMeta.collections, [
+    'autosave_revision_interval',
+    'status',
+  ]);
+});
+
+test('the column lookup wins over what the target objects happen to carry', () => {
+  const columns = {
+    collections: new Set(['icon', 'status', 'autosave_revision_interval']),
+    fields: new Set<string>(),
+    relations: new Set<string>(),
+  };
+
+  assert.deepEqual(compatibilityOf(V12, V11, columns).unknownMeta.collections, []);
+});
+
+test('a target that cannot be read drifts by nothing, rather than by everything', () => {
+  assert.deepEqual(unknownColumns(['id', 'title'], new Set()), []);
+  assert.deepEqual(withoutUnknownKeys({ id: 1, title: 'x' }, new Set()), {
+    id: 1,
+    title: 'x',
+  });
+});
+
+test('columns the target lacks are named, not silently skipped', () => {
+  assert.deepEqual(
+    unknownColumns(['id', 'title', 'focal_point_x'], new Set(['id', 'title'])),
+    ['focal_point_x'],
+  );
+});
+
+test('a row is pruned to what the target can actually store', () => {
+  assert.deepEqual(
+    withoutUnknownKeys(
+      { id: 1, title: 'x', tus_data: null },
+      new Set(['id', 'title']),
+    ),
+    { id: 1, title: 'x' },
+  );
 });

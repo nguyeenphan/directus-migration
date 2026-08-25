@@ -1,5 +1,6 @@
 import { AUDIT_FIELDS } from '@/constants/run';
 import { SCHEMA_FILTERS } from '@/constants/schema';
+import { compareVersions } from '@/utils/version';
 
 import type { TSequenceReset } from './run';
 
@@ -46,12 +47,50 @@ export type TRelationChange = {
   relatedCollection: string | null;
 };
 
+export type TMetaScope = 'collections' | 'fields' | 'relations';
+
+/**
+ * Meta keys the source snapshot carries that the target has no column for.
+ * A downgraded source keeps the columns of the version it came from, so this
+ * cannot be derived from the reported versions — only from the snapshots.
+ */
+export type TMetaDrift = Record<TMetaScope, string[]>;
+
+export type TCompatibility = {
+  sourceVersion: string;
+  targetVersion: string;
+
+  sourceVendor: string;
+  targetVendor: string;
+
+  unknownMeta: TMetaDrift;
+};
+
 export type TSchemaPlan = {
   collections: TCollectionChange[];
   relations: TRelationChange[];
 
   unchanged: string[];
+
+  compatibility: TCompatibility;
 };
+
+export const META_SCOPES: TMetaScope[] = ['collections', 'fields', 'relations'];
+
+export const unknownMetaKeys = (compatibility: TCompatibility) =>
+  META_SCOPES.flatMap((scope) => compatibility.unknownMeta[scope]);
+
+export const hasVersionMismatch = (compatibility: TCompatibility) =>
+  compareVersions(compatibility.sourceVersion, compatibility.targetVersion) !==
+  'same';
+
+export const hasVendorMismatch = (compatibility: TCompatibility) =>
+  compatibility.sourceVendor !== compatibility.targetVendor;
+
+export const isIncompatible = (compatibility: TCompatibility) =>
+  hasVersionMismatch(compatibility) ||
+  hasVendorMismatch(compatibility) ||
+  unknownMetaKeys(compatibility).length > 0;
 
 export const relationName = (relation: TRelationChange) =>
   `${relation.collection}→${relation.relatedCollection ?? relation.field}`;
