@@ -54,8 +54,11 @@ import {
   compatibilityOf,
   onlyCollections,
   pruneUnknownMeta,
+  readColumns,
   readMetaColumns,
   stripMetaChanges,
+  unknownColumns,
+  withoutUnknownKeys,
 } from './schema';
 
 type TCollectionPlan = {
@@ -304,11 +307,49 @@ const copyFiles = async (
   ]);
 
   const written =
-    (await insertFolders(run, to, folders)) +
-    (await insertFiles(run, to, files));
+    (await insertFolders(
+      run,
+      to,
+      await keptKeys(run, to, SYSTEM_COLLECTIONS.folders, folders),
+    )) +
+    (await insertFiles(
+      run,
+      to,
+      await keptKeys(run, to, SYSTEM_COLLECTIONS.files, files),
+    ));
 
   log(run, 'info', `files: ${folders.length} folders, ${files.length} files`);
   return written;
+};
+
+/**
+ * Files and folders are posted as whole rows. A source that once ran a newer
+ * Directus still has that version's columns, and the schema step cannot add
+ * them to the target — system collections never travel in a schema apply.
+ */
+const keptKeys = async (
+  run: TRun,
+  to: TDirectusClient,
+  collection: string,
+  rows: TRow[],
+) => {
+  const known = await readColumns(to, collection);
+
+  const missing = unknownColumns(
+    [...new Set(rows.flatMap((row) => Object.keys(row)))],
+    known,
+  );
+
+  if (missing.length > 0) {
+    log(
+      run,
+      'warn',
+      `${collection}: dropping ${missing.length} key(s) the target has no ` +
+        `column for: ${missing.join(', ')}`,
+    );
+  }
+
+  return rows.map((row) => withoutUnknownKeys(row, known));
 };
 
 const readAllFolders = (client: TDirectusClient) =>
@@ -444,20 +485,34 @@ const copyData = async (
 
   if (selected.length === 0) return;
 
-  const plans = selected.map<TCollectionPlan>((collection) => {
-    const primary = snapshot.fields.find(
-      (field) =>
-        field.collection === collection && field.schema?.is_primary_key,
-    );
+  const plans = await Promise.all(
+    selected.map<Promise<TCollectionPlan>>(async (collection) => {
+      const primary = snapshot.fields.find(
+        (field) =>
+          field.collection === collection && field.schema?.is_primary_key,
+      );
 
-    return {
-      collection,
-      primaryKey: primaryKeyOf(snapshot, collection),
-      columns: realColumnsOf(snapshot, collection),
-      isSingleton: isSingletonCollection(snapshot, collection),
-      hasAutoIncrement: primary?.schema?.has_auto_increment === true,
-    };
-  });
+      const wanted = realColumnsOf(snapshot, collection);
+      const missing = unknownColumns(wanted, await readColumns(to, collection));
+
+      if (missing.length > 0) {
+        log(
+          run,
+          'warn',
+          `${collection}: the target has no column for ${missing.join(', ')} — ` +
+            `that content will not be migrated. Apply the schema first to carry it over.`,
+        );
+      }
+
+      return {
+        collection,
+        primaryKey: primaryKeyOf(snapshot, collection),
+        columns: wanted.filter((name) => !missing.includes(name)),
+        isSingleton: isSingletonCollection(snapshot, collection),
+        hasAutoIncrement: primary?.schema?.has_auto_increment === true,
+      };
+    }),
+  );
 
   const rowsByCollection = new Map<string, TRow[]>();
 

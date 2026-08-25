@@ -8,6 +8,8 @@ import {
   onlyCollections,
   pruneUnknownMeta,
   stripMetaChanges,
+  unknownColumns,
+  withoutUnknownKeys,
 } from '@/api/schema';
 import { unknownMetaKeys } from '@/models/plan';
 
@@ -287,4 +289,29 @@ test('the column lookup wins over what the target objects happen to carry', () =
   };
 
   assert.deepEqual(compatibilityOf(V12, V11, columns).unknownMeta.collections, []);
+});
+
+test('a target that cannot be read drifts by nothing, rather than by everything', () => {
+  assert.deepEqual(unknownColumns(['id', 'title'], new Set()), []);
+  assert.deepEqual(withoutUnknownKeys({ id: 1, title: 'x' }, new Set()), {
+    id: 1,
+    title: 'x',
+  });
+});
+
+test('columns the target lacks are named, not silently skipped', () => {
+  assert.deepEqual(
+    unknownColumns(['id', 'title', 'focal_point_x'], new Set(['id', 'title'])),
+    ['focal_point_x'],
+  );
+});
+
+test('a row is pruned to what the target can actually store', () => {
+  assert.deepEqual(
+    withoutUnknownKeys(
+      { id: 1, title: 'x', tus_data: null },
+      new Set(['id', 'title']),
+    ),
+    { id: 1, title: 'x' },
+  );
 });

@@ -6,6 +6,7 @@ import {
 } from '@directus/sdk';
 
 import { isSystemName } from '@/api';
+import type { TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
 import {
   META_SCOPES,
@@ -118,32 +119,54 @@ const SYSTEM_TABLE: Record<TMetaScope, string> = {
 };
 
 /**
- * The columns each system table actually has, asked of the instance itself.
- * A fresh install carries no user collections to infer them from, which is
- * precisely when a migration into it needs the answer.
+ * The columns a collection actually has, asked of the instance itself rather
+ * than inferred from its content. A fresh install has nothing to infer from,
+ * which is precisely when a migration into it needs the answer.
+ *
+ * An empty set means "could not tell" — callers must treat that as no drift
+ * rather than as a collection with no columns.
  */
+export const readColumns = async (
+  client: TDirectusClient,
+  collection: string,
+): Promise<Set<string>> => {
+  try {
+    const fields = await client.request(readFieldsByCollection(collection));
+
+    return new Set(fields.map((entry) => String(entry.field)));
+  } catch {
+    return new Set<string>();
+  }
+};
+
 export const readMetaColumns = async (
   client: TDirectusClient,
 ): Promise<TMetaColumns> => {
   const scopes = await Promise.all(
-    META_SCOPES.map(async (scope) => {
-      try {
-        const fields = await client.request(
-          readFieldsByCollection(SYSTEM_TABLE[scope]),
-        );
-
-        return [
-          scope,
-          new Set(fields.map((entry) => String(entry.field))),
-        ] as const;
-      } catch {
-        return [scope, new Set<string>()] as const;
-      }
-    }),
+    META_SCOPES.map(
+      async (scope) =>
+        [scope, await readColumns(client, SYSTEM_TABLE[scope])] as const,
+    ),
   );
 
   return Object.fromEntries(scopes) as TMetaColumns;
 };
+
+/**
+ * The names in `wanted` the target has no column for. Unknown columns (an
+ * unreadable target) drift by nothing, matching `driftIn`.
+ */
+export const unknownColumns = (
+  wanted: readonly string[],
+  known: ReadonlySet<string>,
+) => (known.size === 0 ? [] : wanted.filter((name) => !known.has(name)));
+
+export const withoutUnknownKeys = (row: TRow, known: ReadonlySet<string>) =>
+  known.size === 0
+    ? row
+    : Object.fromEntries(
+        Object.entries(row).filter(([key]) => known.has(key)),
+      );
 
 /**
  * Keys the source will send that the target has no column for. `known` comes
