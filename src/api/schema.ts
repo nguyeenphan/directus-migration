@@ -1,16 +1,25 @@
 import type { SchemaSnapshotOutput } from '@directus/sdk';
-import { schemaDiff, schemaSnapshot } from '@directus/sdk';
+import {
+  readFieldsByCollection,
+  schemaDiff,
+  schemaSnapshot,
+} from '@directus/sdk';
 
 import { isSystemName } from '@/api';
 import type { TConnection } from '@/models/connection';
-import type {
-  TChangeKind,
-  TCollectionChange,
-  TFieldAttributeChange,
-  TRelationChange,
-  TSchemaPlan,
+import {
+  META_SCOPES,
+  type TChangeKind,
+  type TCollectionChange,
+  type TCompatibility,
+  type TFieldAttributeChange,
+  type TMetaDrift,
+  type TMetaScope,
+  type TRelationChange,
+  type TSchemaPlan,
+  unknownMetaKeys,
 } from '@/models/plan';
-import { clientFor } from '@/providers/directusClient';
+import { clientFor, type TDirectusClient } from '@/providers/directusClient';
 import { formatValue } from '@/utils/formatValue';
 
 const KIND_BY_DEEP_DIFF: Record<string, TChangeKind> = {
@@ -62,14 +71,149 @@ export const buildSchemaPlan = async (
     diff: {},
   };
 
+  const compatibility = compatibilityOf(
+    snapshot,
+    targetSnapshot,
+    await readMetaColumns(to),
+  );
+  const unknown = unknownMetaKeys(compatibility);
+
+  if (unknown.length > 0) {
+    onLog?.(
+      `Target does not know ${unknown.length} meta key(s) the source sends: ${unknown.join(', ')}`,
+    );
+  }
+
   return {
     plan: assemble(
       stripMetaChanges(diff as TDiffDocument),
       snapshot,
       fieldTypes(targetSnapshot),
+      compatibility,
     ),
     snapshot,
   };
+};
+
+type TMetaCarrier = { meta?: unknown };
+
+const metaKeysOf = (snapshot: SchemaSnapshotOutput, scope: TMetaScope) => {
+  const keys = new Set<string>();
+
+  for (const entry of (snapshot[scope] ?? []) as TMetaCarrier[]) {
+    if (!entry?.meta || typeof entry.meta !== 'object') continue;
+
+    for (const key of Object.keys(entry.meta)) keys.add(key);
+  }
+
+  return keys;
+};
+
+export type TMetaColumns = Record<TMetaScope, Set<string>>;
+
+const SYSTEM_TABLE: Record<TMetaScope, string> = {
+  collections: 'directus_collections',
+  fields: 'directus_fields',
+  relations: 'directus_relations',
+};
+
+/**
+ * The columns each system table actually has, asked of the instance itself.
+ * A fresh install carries no user collections to infer them from, which is
+ * precisely when a migration into it needs the answer.
+ */
+export const readMetaColumns = async (
+  client: TDirectusClient,
+): Promise<TMetaColumns> => {
+  const scopes = await Promise.all(
+    META_SCOPES.map(async (scope) => {
+      try {
+        const fields = await client.request(
+          readFieldsByCollection(SYSTEM_TABLE[scope]),
+        );
+
+        return [
+          scope,
+          new Set(fields.map((entry) => String(entry.field))),
+        ] as const;
+      } catch {
+        return [scope, new Set<string>()] as const;
+      }
+    }),
+  );
+
+  return Object.fromEntries(scopes) as TMetaColumns;
+};
+
+/**
+ * Keys the source will send that the target has no column for. `known` comes
+ * from the target's own system tables; sampling its objects is the fallback
+ * for when that lookup fails.
+ */
+const driftIn = (
+  source: SchemaSnapshotOutput,
+  target: SchemaSnapshotOutput,
+  scope: TMetaScope,
+  known?: TMetaColumns,
+) => {
+  const columns = known?.[scope]?.size ? known[scope] : metaKeysOf(target, scope);
+  if (columns.size === 0) return [];
+
+  return [...metaKeysOf(source, scope)]
+    .filter((key) => !columns.has(key))
+    .sort();
+};
+
+export const compatibilityOf = (
+  source: SchemaSnapshotOutput,
+  target: SchemaSnapshotOutput,
+  known?: TMetaColumns,
+): TCompatibility => ({
+  sourceVersion: source.directus ?? 'unknown',
+  targetVersion: target.directus ?? 'unknown',
+
+  sourceVendor: source.vendor ?? 'unknown',
+  targetVendor: target.vendor ?? 'unknown',
+
+  unknownMeta: Object.fromEntries(
+    META_SCOPES.map((scope) => [scope, driftIn(source, target, scope, known)]),
+  ) as TMetaDrift,
+});
+
+const withoutKeys = (meta: Record<string, unknown>, drop: ReadonlySet<string>) =>
+  Object.fromEntries(
+    Object.entries(meta).filter(([key]) => !drop.has(key)),
+  );
+
+const prunedChange = (change: TDiffChange, drop: ReadonlySet<string>) => {
+  const rhs = change.rhs as { meta?: Record<string, unknown> } | undefined;
+  if (!rhs?.meta || typeof rhs.meta !== 'object') return change;
+
+  return { ...change, rhs: { ...rhs, meta: withoutKeys(rhs.meta, drop) } };
+};
+
+/**
+ * Newly created objects carry their whole `meta` over, so a key the target has
+ * no column for reaches the insert and fails it. Meta-only edits on objects
+ * that already exist are dropped earlier, by `stripMetaChanges`.
+ */
+export const pruneUnknownMeta = (
+  diff: TDiffDocument,
+  unknownMeta: TMetaDrift,
+): TDiffDocument => {
+  const pruned = { ...diff };
+
+  for (const scope of META_SCOPES) {
+    const drop = new Set(unknownMeta[scope]);
+    if (drop.size === 0) continue;
+
+    pruned[scope] = (diff[scope] ?? []).map((entry) => ({
+      ...entry,
+      diff: (entry.diff ?? []).map((change) => prunedChange(change, drop)),
+    }));
+  }
+
+  return pruned;
 };
 
 const fieldTypes = (snapshot: SchemaSnapshotOutput) => {
@@ -96,6 +240,7 @@ const assemble = (
   diff: TDiffDocument,
   snapshot: SchemaSnapshotOutput,
   targetTypes: Map<string, string>,
+  compatibility: TCompatibility,
 ): TSchemaPlan => {
   const sourceTypes = fieldTypes(snapshot);
   const byCollection = new Map<string, TCollectionChange>();
@@ -154,7 +299,7 @@ const assemble = (
     .map((entry) => String(entry.collection))
     .filter((name) => !isSystemName(name) && !touched.has(name));
 
-  return { collections, relations, unchanged };
+  return { collections, relations, unchanged, compatibility };
 };
 
 export const attributeChanges = (entry: TDiffEntry): TFieldAttributeChange[] =>

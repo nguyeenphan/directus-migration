@@ -23,6 +23,7 @@ import {
 } from '@/constants/run';
 import type { TRow } from '@/models/common';
 import { hostOf } from '@/models/connection';
+import { unknownMetaKeys } from '@/models/plan';
 import {
   RUN_STATUS_LEVEL,
   type TLogLevel,
@@ -49,7 +50,13 @@ import { withRetry } from '@/utils/retry';
 import { applyRelax, planRelax, restoreConstraints } from './constraints';
 import { isSingletonCollection, primaryKeyOf, realColumnsOf } from './data';
 import { readAll, readKeys, readPages } from './paging';
-import { onlyCollections, stripMetaChanges } from './schema';
+import {
+  compatibilityOf,
+  onlyCollections,
+  pruneUnknownMeta,
+  readMetaColumns,
+  stripMetaChanges,
+} from './schema';
 
 type TCollectionPlan = {
   collection: string;
@@ -246,8 +253,29 @@ const applySchemaDiff = async (
     return 0;
   }
 
+  const compatibility = compatibilityOf(
+    snapshot,
+    await to.request(schemaSnapshot()),
+    await readMetaColumns(to),
+  );
+
+  const unknown = unknownMetaKeys(compatibility);
+
+  if (unknown.length > 0) {
+    log(
+      run,
+      'warn',
+      `schema: dropping ${unknown.length} meta key(s) the target ` +
+        `(${compatibility.targetVersion}) does not have, sent by the source ` +
+        `(${compatibility.sourceVersion}): ${unknown.join(', ')}`,
+    );
+  }
+
   const structural = onlyCollections(
-    stripMetaChanges(diff.diff as never),
+    pruneUnknownMeta(
+      stripMetaChanges(diff.diff as never),
+      compatibility.unknownMeta,
+    ),
     keep,
   ) as typeof diff.diff;
   const changeCount = [

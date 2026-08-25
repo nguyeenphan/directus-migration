@@ -18,6 +18,7 @@ import {
 } from '@/models/plan';
 
 import { RecompareButton } from '../recompareButton';
+import { CompatibilityNotice } from './compatibilityNotice';
 import { SchemaDetail } from './detail/schemaDetail';
 import { SchemaTree } from './tree/schemaTree';
 
@@ -71,6 +72,8 @@ export const SchemaStep = ({
   if (plan.collections.length === 0 && plan.relations.length === 0) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
+        <CompatibilityNotice compatibility={plan.compatibility} />
+
         <div className="grid flex-1 place-items-center">
           <div className="flex flex-col items-center gap-3 text-center">
             <Check className="size-8 text-success" strokeWidth={1.5} />
@@ -111,6 +114,8 @@ export const SchemaStep = ({
           {translate('schema-apply-toggle')}
         </label>
       </div>
+
+      <CompatibilityNotice compatibility={plan.compatibility} />
 
       {stranded.length > 0 && (
         <div className="flex items-start gap-2 border border-warning p-3 text-sm text-warning">
