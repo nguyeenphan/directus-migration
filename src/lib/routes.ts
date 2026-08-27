@@ -5,7 +5,7 @@ export const ROUTES = {
   MIGRATE: '/migrate',
 } as const;
 
-export type TRoute = (typeof ROUTES)[keyof typeof ROUTES];
+type TRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
 export const route = (lang: TLocale, path: TRoute) =>
   path === ROUTES.HOME ? `/${lang}` : `/${lang}${path}`;

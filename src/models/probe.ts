@@ -1,4 +1,4 @@
-export type TProbe = {
+type TProbe = {
   version: string | null;
 
   vendor: string | null;

@@ -2,7 +2,7 @@ export type TDiffOp = { type: 'same' | 'add' | 'del'; text: string };
 
 export type TDiffLine = { ops: TDiffOp[]; changed: boolean };
 
-export type TDiffBlock =
+type TDiffBlock =
   { type: 'lines'; lines: TDiffLine[] } | { type: 'gap'; lines: TDiffLine[] };
 
 const TOKEN = /\s+|[^\s]+/g;
@@ -79,6 +79,23 @@ const merge = (ops: TDiffOp[]) =>
 
     return merged;
   }, []);
+
+const INVISIBLE: Record<string, string> = {
+  '\r': '␍',
+  '\t': '␉',
+  '\u00a0': '␠',
+  '\u200b': '␢',
+  '\ufeff': '␦',
+};
+
+const HIDDEN = /[\r\t\u00a0\u200b\ufeff]/g;
+
+export const revealInvisible = (text: string) => {
+  const shown = text.replace(HIDDEN, (char) => INVISIBLE[char]);
+  if (shown !== text) return shown;
+
+  return text.length > 0 && text.trim() === '' ? '·'.repeat(text.length) : text;
+};
 
 export const toDiffLines = (ops: TDiffOp[]): TDiffLine[] => {
   const lines: TDiffLine[] = [{ ops: [], changed: false }];

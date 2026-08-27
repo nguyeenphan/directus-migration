@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { inParentOrder } from '@/api/runner';
+import { inParentOrder } from '@/lib/directus/folders';
 
 const order = (folders: { id: string; parent: string | null }[]) =>
   inParentOrder(folders).map((folder) => String(folder.id));

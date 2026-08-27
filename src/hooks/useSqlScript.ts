@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 
-import { generateSqlScript } from '@/app/[lang]/migrate/operations';
-import type { TConnection } from '@/models/connection';
-import type { TDataChange } from '@/models/plan';
+import type { TResult } from '@/models/common';
 
 type TState =
   | { phase: 'idle' }
@@ -12,23 +10,19 @@ type TState =
   | { phase: 'ready'; sql: string }
   | { phase: 'error'; error: string };
 
-export const useSqlScript = (source: TConnection, target: TConnection) => {
+export type TSqlGenerator = (
+  onLog: (line: string) => void,
+) => Promise<TResult<string>>;
+
+export const useSqlScript = () => {
   const [state, setState] = useState<TState>({ phase: 'idle' });
+  const [log, setLog] = useState<string[]>([]);
 
-  const generate = async (
-    rows: TDataChange[],
-    selection: ReadonlySet<string>,
-    mirrorData: boolean,
-  ) => {
+  const generate = async (run: TSqlGenerator) => {
     setState({ phase: 'loading' });
+    setLog([]);
 
-    const result = await generateSqlScript(
-      source,
-      target,
-      rows,
-      [...selection],
-      mirrorData,
-    );
+    const result = await run((line) => setLog((lines) => [...lines, line]));
 
     setState(
       result.ok
@@ -43,6 +37,7 @@ export const useSqlScript = (source: TConnection, target: TConnection) => {
     phase: state.phase,
     sql: state.phase === 'ready' ? state.sql : '',
     error: state.phase === 'error' ? state.error : '',
+    log,
     generate,
   };
 };

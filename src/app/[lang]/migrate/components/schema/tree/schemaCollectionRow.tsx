@@ -27,7 +27,8 @@ export const SchemaCollectionRow = ({
   return (
     <li
       className={cn(
-        'flex items-center gap-2 px-2 hover:bg-accent/60',
+        'flex items-center gap-2 border-b border-border/40 px-2 py-1',
+        'hover:bg-accent/60',
         isActive && 'bg-accent',
         !isSelected && 'opacity-40',
       )}

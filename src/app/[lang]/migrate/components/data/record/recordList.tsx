@@ -3,19 +3,29 @@
 import { useMemo, useState } from 'react';
 
 import { DiffMark } from '@/components/common/diffMark';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CHANGE_ROW } from '@/constants/changeStyles';
 import { useTranslate } from '@/hooks/useTranslate';
+import type { TTranslate } from '@/lib/i18n/translate';
 import { changedFields, isAuditOnly, type TRecordChange } from '@/models/plan';
 import { cn } from '@/utils/cn';
-import type { TTranslate } from '@/utils/translate';
 
 type TProps = {
   records: TRecordChange[];
   activeKey: string | null;
+
+  picked: ReadonlySet<string> | null;
   onSelect: (key: string) => void;
+  onPick: (keys: string[], isPicked: boolean) => void;
 };
 
-export const RecordList = ({ records, activeKey, onSelect }: TProps) => {
+export const RecordList = ({
+  records,
+  activeKey,
+  picked,
+  onSelect,
+  onPick,
+}: TProps) => {
   const translate = useTranslate();
   const [showAuditOnly, setShowAuditOnly] = useState(false);
 
@@ -30,31 +40,74 @@ export const RecordList = ({ records, activeKey, onSelect }: TProps) => {
   }, [records]);
 
   const visible = showAuditOnly ? [...interesting, ...auditOnly] : interesting;
+  const isPicked = (key: string) => picked === null || picked.has(key);
+  const allPicked = visible.every((record) => isPicked(record.key));
+  const pickedCount = visible.filter((record) => isPicked(record.key)).length;
 
   return (
     <div className="flex h-full min-h-0 flex-col border">
+      <div className="flex items-center gap-2 border-b px-2 py-1.5">
+        <Checkbox
+          checked={allPicked}
+          onCheckedChange={(checked) =>
+            onPick(
+              records.map((record) => record.key),
+              Boolean(checked),
+            )
+          }
+          aria-label={translate('data-pick-all-records')}
+        />
+        <span className="text-xs text-muted-foreground">
+          {picked === null
+            ? translate('data-pick-all-records')
+            : translate('data-picked-records', { count: picked.size })}
+        </span>
+
+        <span className="identifier ml-auto text-xs tabular-nums text-muted-foreground">
+          {pickedCount} / {visible.length}
+        </span>
+      </div>
+
       <div className="diff-dense min-h-0 flex-1 overflow-y-auto">
         <ul>
           {visible.map((record) => (
             <li key={`${record.kind}-${record.key}`}>
-              <button
-                type="button"
-                onClick={() => onSelect(record.key)}
+              <div
                 className={cn(
-                  'flex w-full items-baseline gap-2 px-2 text-left hover:bg-accent/60',
+                  'flex items-baseline gap-2 px-2 hover:bg-accent/60',
                   CHANGE_ROW[record.kind],
                   activeKey === record.key && 'bg-accent',
+                  !isPicked(record.key) && 'opacity-40',
                 )}
               >
-                <DiffMark
-                  kind={record.kind}
-                  label={translate(`change-${record.kind}`)}
+                <Checkbox
+                  checked={isPicked(record.key)}
+                  onCheckedChange={(checked) =>
+                    onPick([record.key], Boolean(checked))
+                  }
+                  aria-label={translate('data-pick-record', {
+                    name: record.label,
+                  })}
+                  className="self-center"
                 />
-                <span className="min-w-0 flex-1 truncate">{record.label}</span>
-                <span className="identifier max-w-[45%] truncate text-right text-xs text-muted-foreground">
-                  {summarise(record, translate)}
-                </span>
-              </button>
+
+                <button
+                  type="button"
+                  onClick={() => onSelect(record.key)}
+                  className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
+                >
+                  <DiffMark
+                    kind={record.kind}
+                    label={translate(`change-${record.kind}`)}
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {record.label}
+                  </span>
+                  <span className="identifier max-w-[45%] truncate text-right text-xs text-muted-foreground">
+                    {summarise(record, translate)}
+                  </span>
+                </button>
+              </div>
             </li>
           ))}
         </ul>

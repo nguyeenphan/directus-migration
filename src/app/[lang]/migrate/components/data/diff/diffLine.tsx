@@ -1,7 +1,7 @@
 'use client';
 
 import { DIFF_VALUE } from '@/constants/changeStyles';
-import type { TDiffLine } from '@/utils/wordDiff';
+import { revealInvisible, type TDiffLine } from '@/utils/wordDiff';
 
 export type TSide = 'before' | 'after' | 'both';
 
@@ -29,7 +29,7 @@ export const DiffLine = ({ line, side }: TProps) => (
                 : undefined
           }
         >
-          {op.text}
+          {op.type === 'same' ? op.text : revealInvisible(op.text)}
         </span>
       ))}
     {line.ops.length === 0 && ' '}

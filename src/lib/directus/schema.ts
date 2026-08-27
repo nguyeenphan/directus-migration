@@ -5,7 +5,8 @@ import {
   schemaSnapshot,
 } from '@directus/sdk';
 
-import { isSystemName } from '@/api';
+import { isSystemName } from '@/constants/directus';
+import { clientFor, type TDirectusClient } from '@/lib/directus/client';
 import type { TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
 import {
@@ -20,7 +21,6 @@ import {
   type TSchemaPlan,
   unknownMetaKeys,
 } from '@/models/plan';
-import { clientFor, type TDirectusClient } from '@/providers/directusClient';
 import { formatValue } from '@/utils/formatValue';
 
 const KIND_BY_DEEP_DIFF: Record<string, TChangeKind> = {
@@ -110,7 +110,7 @@ const metaKeysOf = (snapshot: SchemaSnapshotOutput, scope: TMetaScope) => {
   return keys;
 };
 
-export type TMetaColumns = Record<TMetaScope, Set<string>>;
+type TMetaColumns = Record<TMetaScope, Set<string>>;
 
 const SYSTEM_TABLE: Record<TMetaScope, string> = {
   collections: 'directus_collections',
@@ -164,9 +164,7 @@ export const unknownColumns = (
 export const withoutUnknownKeys = (row: TRow, known: ReadonlySet<string>) =>
   known.size === 0
     ? row
-    : Object.fromEntries(
-        Object.entries(row).filter(([key]) => known.has(key)),
-      );
+    : Object.fromEntries(Object.entries(row).filter(([key]) => known.has(key)));
 
 /**
  * Keys the source will send that the target has no column for. `known` comes
@@ -179,7 +177,9 @@ const driftIn = (
   scope: TMetaScope,
   known?: TMetaColumns,
 ) => {
-  const columns = known?.[scope]?.size ? known[scope] : metaKeysOf(target, scope);
+  const columns = known?.[scope]?.size
+    ? known[scope]
+    : metaKeysOf(target, scope);
   if (columns.size === 0) return [];
 
   return [...metaKeysOf(source, scope)]
@@ -203,10 +203,10 @@ export const compatibilityOf = (
   ) as TMetaDrift,
 });
 
-const withoutKeys = (meta: Record<string, unknown>, drop: ReadonlySet<string>) =>
-  Object.fromEntries(
-    Object.entries(meta).filter(([key]) => !drop.has(key)),
-  );
+const withoutKeys = (
+  meta: Record<string, unknown>,
+  drop: ReadonlySet<string>,
+) => Object.fromEntries(Object.entries(meta).filter(([key]) => !drop.has(key)));
 
 const prunedChange = (change: TDiffChange, drop: ReadonlySet<string>) => {
   const rhs = change.rhs as { meta?: Record<string, unknown> } | undefined;

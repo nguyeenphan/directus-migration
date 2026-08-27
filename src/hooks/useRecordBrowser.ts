@@ -22,11 +22,7 @@ export const useRecordBrowser = (source: TConnection, target: TConnection) => {
 
   const index = records.findIndex((record) => record.key === activeKey);
 
-  const inspect = (collection: string) => {
-    setActive(collection);
-    setActiveKey(null);
-    if (details[collection]) return;
-
+  const load = (collection: string) => {
     setDetails((current) => ({
       ...current,
       [collection]: { phase: 'loading' },
@@ -44,6 +40,12 @@ export const useRecordBrowser = (source: TConnection, target: TConnection) => {
     });
   };
 
+  const inspect = (collection: string) => {
+    setActive(collection);
+    setActiveKey(null);
+    if (!details[collection]) load(collection);
+  };
+
   return {
     active,
     activeKey,
@@ -53,6 +55,7 @@ export const useRecordBrowser = (source: TConnection, target: TConnection) => {
     record: index >= 0 ? records[index] : null,
 
     inspect,
+    reload: () => active && load(active),
     select: setActiveKey,
     step: (delta: number) => {
       const next = records[index + delta];

@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 
 import { TranslationProvider } from '@/contexts/translationContext';
+import { getDictionary } from '@/lib/i18n/dictionary';
 import { isLocale } from '@/models/common';
-import { getDictionary } from '@/providers/dictionary';
 
 import { MigrationWizard } from './components/migrationWizard';
 

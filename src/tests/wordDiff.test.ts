@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   collapseUnchanged,
+  revealInvisible,
   type TDiffOp,
   toDiffLines,
   wordDiff,
@@ -85,4 +86,18 @@ test('text over the token cap degrades to a whole-block replace', () => {
     wordDiff(before, after).map((op) => op.type),
     ['del', 'add'],
   );
+});
+
+test('a changed span of carriage returns is spelled out', () => {
+  assert.equal(revealInvisible('\r'), '␍');
+  assert.equal(revealInvisible('\r'), '␍');
+  assert.equal(revealInvisible('a\u00a0b'), 'a␠b');
+});
+
+test('a changed span of plain spaces shows as dots', () => {
+  assert.equal(revealInvisible('  '), '··');
+});
+
+test('ordinary text is left alone', () => {
+  assert.equal(revealInvisible('<p>Lưu ý</p>'), '<p>Lưu ý</p>');
 });

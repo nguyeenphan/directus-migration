@@ -14,16 +14,30 @@ import {
   updateSingleton,
 } from '@directus/sdk';
 
-import { API_FILES_URL, SYSTEM_COLLECTIONS } from '@/api';
+import { API_FILES_URL, SYSTEM_COLLECTIONS } from '@/constants/directus';
 import {
   AUDIT_FIELDS,
   AUDIT_USER_FIELDS,
   READ_PAGE_SIZE,
   WRITE_BATCH_SIZE,
 } from '@/constants/run';
+import { clientFor, type TDirectusClient } from '@/lib/directus/client';
+import { clearPendingRelax, putPendingRelax } from '@/lib/store/constraints';
+import {
+  getBackup,
+  getSecrets,
+  putBackup,
+  putRun,
+  putSecrets,
+} from '@/lib/store/runs';
 import type { TRow } from '@/models/common';
 import { hostOf } from '@/models/connection';
-import { unknownMetaKeys } from '@/models/plan';
+import {
+  keepsRow,
+  pickedKeys,
+  type TRecordPicks,
+  unknownMetaKeys,
+} from '@/models/plan';
 import {
   RUN_STATUS_LEVEL,
   type TLogLevel,
@@ -32,24 +46,20 @@ import {
   type TRunUnit,
   type TStage,
 } from '@/models/run';
-import {
-  clearPendingRelax,
-  putPendingRelax,
-} from '@/providers/constraintStore';
-import { clientFor, type TDirectusClient } from '@/providers/directusClient';
-import {
-  getBackup,
-  getSecrets,
-  putBackup,
-  putRun,
-  putSecrets,
-} from '@/providers/runStore';
 import { chunkArray } from '@/utils/chunk';
 import { withRetry } from '@/utils/retry';
 
 import { applyRelax, planRelax, restoreConstraints } from './constraints';
 import { isSingletonCollection, primaryKeyOf, realColumnsOf } from './data';
+import { orMissing } from './errors';
+import { inParentOrder } from './folders';
 import { readAll, readKeys, readPages } from './paging';
+import {
+  expandPicks,
+  foreignKeysOf,
+  pulledSummary,
+  type TPickRelation,
+} from './picks';
 import {
   compatibilityOf,
   onlyCollections,
@@ -177,7 +187,7 @@ const execute = async (run: TRun, request: TRunRequest) => {
 
     if (request.collections.length > 0) {
       await runStageUnit(run, 'files', () => copyFiles(run, from, to));
-      await copyData(run, from, to, snapshot, request.mirrorData);
+      await copyData(run, from, to, snapshot, request);
     }
   } catch (error) {
     log(run, 'error', describe(error));
@@ -322,11 +332,6 @@ const copyFiles = async (
   return written;
 };
 
-/**
- * Files and folders are posted as whole rows. A source that once ran a newer
- * Directus still has that version's columns, and the schema step cannot add
- * them to the target — system collections never travel in a schema apply.
- */
 const keptKeys = async (
   run: TRun,
   to: TDirectusClient,
@@ -369,47 +374,6 @@ const readAllFiles = (client: TDirectusClient) =>
         readFiles({ sort: ['id'], limit: READ_PAGE_SIZE, offset }),
       ) as Promise<TRow[]>,
   );
-
-export const inParentOrder = (folders: TRow[]) => {
-  const ids = new Set(folders.map((folder) => String(folder.id)));
-  const children = new Map<string, TRow[]>();
-  const roots: TRow[] = [];
-
-  for (const folder of folders) {
-    const parent = folder.parent ? String(folder.parent) : null;
-
-    if (parent === null || !ids.has(parent)) {
-      roots.push(folder);
-      continue;
-    }
-
-    children.set(parent, [...(children.get(parent) ?? []), folder]);
-  }
-
-  const ordered: TRow[] = [];
-  const written = new Set<string>();
-
-  for (const root of roots) {
-    const stack = [root];
-
-    while (stack.length > 0) {
-      const folder = stack.pop();
-      if (!folder) break;
-
-      const id = String(folder.id);
-      if (written.has(id)) continue;
-
-      written.add(id);
-      ordered.push(folder);
-      stack.push(...(children.get(id) ?? []));
-    }
-  }
-
-  return [
-    ...ordered,
-    ...folders.filter((folder) => !written.has(String(folder.id))),
-  ];
-};
 
 const insertFolders = async (
   run: TRun,
@@ -472,12 +436,74 @@ const recordCreated = (run: TRun, collection: string, rows: TRow[]) => {
   ];
 };
 
+const expandRecordPicks = async (
+  run: TRun,
+  from: TDirectusClient,
+  to: TDirectusClient,
+  plans: TCollectionPlan[],
+  picks: TRecordPicks,
+  relations: TPickRelation[],
+): Promise<TRecordPicks> => {
+  if (Object.keys(picks).length === 0) return picks;
+
+  const rows = new Map<string, TRow[]>();
+  const inTarget = new Map<string, ReadonlySet<string>>();
+  const primaryKeys = new Map(
+    plans.map((plan) => [plan.collection, plan.primaryKey]),
+  );
+
+  for (const plan of plans) {
+    if (plan.isSingleton) continue;
+
+    try {
+      rows.set(
+        plan.collection,
+        await withRetry(() =>
+          readAll(from, plan.collection, plan.primaryKey, plan.columns),
+        ),
+      );
+      inTarget.set(
+        plan.collection,
+        (await orMissing(readKeys(to, plan.collection, plan.primaryKey))) ??
+          new Set<string>(),
+      );
+    } catch (error) {
+      log(
+        run,
+        'warn',
+        `${plan.collection}: could not check its references — ${describe(error)}`,
+      );
+    }
+  }
+
+  const expanded = expandPicks({
+    picks,
+    relations,
+    rows,
+    primaryKeys,
+    inTarget,
+  });
+
+  const summary = pulledSummary(expanded.pulled);
+
+  if (summary) {
+    log(
+      run,
+      'warn',
+      `Pulled in records the picked ones point at: ${summary}. ` +
+        `Without them the target would reject the foreign keys.`,
+    );
+  }
+
+  return expanded.picks;
+};
+
 const copyData = async (
   run: TRun,
   from: TDirectusClient,
   to: TDirectusClient,
   snapshot: SchemaSnapshotOutput,
-  mirrorData: boolean,
+  request: TRunRequest,
 ) => {
   const selected = run.units
     .filter((unit) => unit.stage === 'data')
@@ -527,6 +553,15 @@ const copyData = async (
     ? await currentUserId(to)
     : null;
 
+  const picks = await expandRecordPicks(
+    run,
+    from,
+    to,
+    plans,
+    request.records,
+    foreignKeysOf(snapshot),
+  );
+
   log(run, 'info', 'Relaxing target constraints for the data stage.');
 
   const relaxed = await planRelax(to, selected);
@@ -546,9 +581,21 @@ const copyData = async (
       if (unit) unit.status = 'running';
 
       try {
-        const rows = await withRetry(() =>
-          readAll(from, plan.collection, plan.primaryKey, plan.columns),
-        );
+        const picked = pickedKeys(picks, plan.collection);
+        const rows = (
+          await withRetry(() =>
+            readAll(from, plan.collection, plan.primaryKey, plan.columns),
+          )
+        ).filter((row) => keepsRow(picked, row[plan.primaryKey]));
+
+        if (picked) {
+          log(
+            run,
+            'info',
+            `${plan.collection}: writing ${rows.length} of ${picked.size} picked record(s)`,
+          );
+        }
+
         rowsByCollection.set(plan.collection, rows);
 
         if (plan.isSingleton) {
@@ -601,8 +648,8 @@ const copyData = async (
       }
     }
 
-    if (mirrorData) {
-      await mirrorDeletes(run, to, plans, rowsByCollection);
+    if (request.mirrorData) {
+      await mirrorDeletes(run, to, plans, rowsByCollection, picks);
     }
   } finally {
     await restoreConstraints(to, relaxed);
@@ -616,6 +663,7 @@ const mirrorDeletes = async (
   to: TDirectusClient,
   plans: TCollectionPlan[],
   rowsByCollection: Map<string, TRow[]>,
+  records: TRunRequest['records'],
 ) => {
   for (const plan of plans) {
     if (run.stopRequested) {
@@ -641,7 +689,10 @@ const mirrorDeletes = async (
         readKeys(to, plan.collection, plan.primaryKey),
       );
 
-      const extra = [...targetKeys].filter((key) => !sourceKeys.has(key));
+      const picked = pickedKeys(records, plan.collection);
+      const extra = [...targetKeys].filter(
+        (key) => !sourceKeys.has(key) && keepsRow(picked, key),
+      );
       if (extra.length === 0) continue;
 
       for (const batch of chunkArray(extra, WRITE_BATCH_SIZE)) {

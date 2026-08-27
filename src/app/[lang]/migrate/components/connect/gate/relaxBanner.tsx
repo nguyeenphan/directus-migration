@@ -6,13 +6,13 @@ import { useState, useSyncExternalStore } from 'react';
 import { repairRelax } from '@/app/[lang]/migrate/operations';
 import { Button } from '@/components/ui/button';
 import { useTranslate } from '@/hooks/useTranslate';
-import { hostOf, type TConnection } from '@/models/connection';
 import {
   listPendingRelax,
   serverPendingRelax,
   subscribeToPendingRelax,
   type TPendingRelax,
-} from '@/providers/constraintStore';
+} from '@/lib/store/constraints';
+import { hostOf, type TConnection } from '@/models/connection';
 
 type TProps = {
   target: TConnection;

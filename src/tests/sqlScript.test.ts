@@ -6,9 +6,10 @@ import {
   insertRow,
   insertStub,
   quoteIdent,
+  singletonUpdate,
   sqlLiteral,
   updateStatement,
-} from '@/api/sqlScript';
+} from '@/lib/directus/sqlScript';
 
 test('identifiers are quoted, and embedded quotes are doubled', () => {
   assert.equal(quoteIdent('users'), '"users"');
@@ -38,11 +39,16 @@ test('insert stub only ever writes the primary key, batched into one statement',
 });
 
 test('update statement skips the primary key and nulls audit fields', () => {
-  const sql = updateStatement('articles', 'id', ['id', 'title', 'user_updated'], {
-    id: 1,
-    title: 'New title',
-    user_updated: 'someone',
-  });
+  const sql = updateStatement(
+    'articles',
+    'id',
+    ['id', 'title', 'user_updated'],
+    {
+      id: 1,
+      title: 'New title',
+      user_updated: 'someone',
+    },
+  );
 
   assert.equal(
     sql,
@@ -66,5 +72,16 @@ test('delete statement lists every key', () => {
   assert.equal(
     deleteStatement('articles', 'id', ['1', '2']),
     `DELETE FROM "articles" WHERE "id" IN ('1', '2');`,
+  );
+});
+
+test('a singleton is updated in place, with no key in the where clause', () => {
+  assert.equal(
+    singletonUpdate('settings', 'id', ['id', 'title', 'date_updated'], {
+      id: 9,
+      title: 'Hello',
+      date_updated: '2024-01-01',
+    }),
+    `UPDATE "settings" SET "title" = 'Hello', "date_updated" = NULL;`,
   );
 });

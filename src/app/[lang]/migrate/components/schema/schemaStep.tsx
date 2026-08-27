@@ -3,6 +3,7 @@
 import { Check, Loader2, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { generateSchemaSqlScript } from '@/app/[lang]/migrate/operations';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -11,6 +12,7 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { useTranslate } from '@/hooks/useTranslate';
+import type { TConnection } from '@/models/connection';
 import {
   destructiveChanges,
   strandedBy,
@@ -18,11 +20,15 @@ import {
 } from '@/models/plan';
 
 import { RecompareButton } from '../recompareButton';
+import { SqlScriptButton } from '../sqlScriptButton';
 import { CompatibilityNotice } from './compatibilityNotice';
 import { SchemaDetail } from './detail/schemaDetail';
 import { SchemaTree } from './tree/schemaTree';
 
 type TProps = {
+  source: TConnection;
+  target: TConnection;
+  force: boolean;
   plan: TSchemaPlan;
   selection: Set<string>;
   applySchema: boolean;
@@ -37,6 +43,9 @@ type TProps = {
 };
 
 export const SchemaStep = ({
+  source,
+  target,
+  force,
   plan,
   selection,
   applySchema,
@@ -175,7 +184,19 @@ export const SchemaStep = ({
           <span className="identifier text-destructive">{schemaRunError}</span>
         )}
 
-        <span className="ml-auto">
+        <span className="ml-auto flex flex-wrap items-center gap-4">
+          <SqlScriptButton
+            disabled={selection.size === 0}
+            generate={(onLog) =>
+              generateSchemaSqlScript(
+                source,
+                target,
+                force,
+                [...selection],
+                onLog,
+              )
+            }
+          />
           <RecompareButton
             isRecomparing={isRecomparing}
             onRecompare={onRecompare}

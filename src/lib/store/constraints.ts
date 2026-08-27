@@ -1,5 +1,5 @@
-import type { TRelaxedField } from '@/api/constraints';
 import { PENDING_RELAX_KEY } from '@/constants/storage';
+import type { TRelaxedField } from '@/lib/directus/constraints';
 
 export type TPendingRelax = {
   runId: string;

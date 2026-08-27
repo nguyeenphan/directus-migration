@@ -1,10 +1,10 @@
 import { readMe, schemaSnapshot, serverInfo } from '@directus/sdk';
 
-import { isSystemName } from '@/api';
+import { isSystemName } from '@/constants/directus';
 import { PROBE_TIMEOUT_MS } from '@/constants/run';
+import { clientFor } from '@/lib/directus/client';
 import type { TConnection } from '@/models/connection';
 import type { TProbeFailure, TProbeResult } from '@/models/probe';
-import { clientFor } from '@/providers/directusClient';
 
 export const probeConnection = async (
   connection: TConnection,

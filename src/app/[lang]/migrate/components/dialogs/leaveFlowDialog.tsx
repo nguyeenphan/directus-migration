@@ -18,11 +18,7 @@ type TProps = {
   onConfirm: () => void;
 };
 
-export const LeaveFlowDialog = ({
-  open,
-  onOpenChange,
-  onConfirm,
-}: TProps) => {
+export const LeaveFlowDialog = ({ open, onOpenChange, onConfirm }: TProps) => {
   const translate = useTranslate();
 
   return (

@@ -10,8 +10,8 @@ import { useSchemaRun } from '@/hooks/useSchemaRun';
 import { useTranslate } from '@/hooks/useTranslate';
 import { hostOf } from '@/models/connection';
 import { blockedSteps, type TStep } from '@/models/flow';
-import { destructiveChanges, sequenceResetsIn } from '@/models/plan';
-import { isFinished, sequenceResetSql } from '@/models/run';
+import { destructiveChanges, missingDependencies } from '@/models/plan';
+import { isFinished } from '@/models/run';
 
 import { ApplyStep } from './apply/applyStep';
 import { ConfirmWriteDialog } from './apply/step/confirmWriteDialog';
@@ -59,16 +59,14 @@ export const MigrationWizard = () => {
     fingerprint: ends.fingerprint,
     runInProgress: schemaRun.run !== null && !isFinished(schemaRun.run),
     hasDataSelected: picked.data.size > 0,
-    sequencesPending: Boolean(
-      plan && sequenceResetSql(sequenceResetsIn(plan.data, picked.data)),
+    dependenciesMissing: Boolean(
+      plan && missingDependencies(plan.data, picked.data).length > 0,
     ),
-    sequencesConfirmed: Boolean(picked.confirmedSql),
   });
 
   const resetFlow = () => {
     comparison.reset();
     schemaRun.clear();
-    picked.setConfirmedSql('');
     setStep('connect');
   };
 
@@ -146,6 +144,9 @@ export const MigrationWizard = () => {
 
         {step === 'schema' && !schemaRun.run && plan && (
           <SchemaStep
+            source={ends.source}
+            target={ends.target}
+            force={ends.force}
             plan={plan.schema}
             selection={picked.schema}
             applySchema={picked.applySchema}
@@ -166,11 +167,11 @@ export const MigrationWizard = () => {
             target={ends.target}
             rows={plan.data}
             selection={picked.data}
+            records={picked.records}
             mirrorData={picked.mirrorData}
-            confirmedSql={picked.confirmedSql}
             onSelectionChange={picked.setData}
+            onRecordsChange={picked.setRecords}
             onMirrorDataChange={picked.setMirrorData}
-            onConfirmedSqlChange={picked.setConfirmedSql}
             isRecomparing={comparison.isBuilding}
             onRecompare={() => comparison.build('data')}
             continueBlocked={blocked.apply}
@@ -184,8 +185,8 @@ export const MigrationWizard = () => {
             target={ends.target}
             plan={plan}
             dataSelection={picked.data}
+            records={picked.records}
             mirrorData={picked.mirrorData}
-            sequencesConfirmed={Boolean(picked.confirmedSql)}
             force={ends.force}
             isRecomparing={comparison.isBuilding}
             onRecompare={() => comparison.build('data')}

@@ -1,4 +1,4 @@
-type TEnglishDictionary = typeof import('../../public/locales/en.json');
+type TEnglishDictionary = typeof import('../../../public/locales/en.json');
 
 type TKeyInFile = keyof TEnglishDictionary & string;
 
@@ -10,7 +10,7 @@ type TPluralBase<TKey extends string> = TKey extends `${infer TBase}_one`
 
 export type TTranslationKey = TKeyInFile | TPluralBase<TKeyInFile>;
 
-export type TTranslationValues = Record<string, string | number>;
+type TTranslationValues = Record<string, string | number>;
 
 export type TTranslate = (
   key: TTranslationKey,

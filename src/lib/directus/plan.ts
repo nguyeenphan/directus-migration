@@ -20,13 +20,7 @@ export const buildPlan = (
       onLog,
     );
 
-    const added = new Set(
-      schema.collections
-        .filter((entry) => entry.kind === 'add')
-        .map((entry) => entry.collection),
-    );
-
-    const data = await buildDataPlan(source, target, snapshot, added, onLog);
+    const data = await buildDataPlan(source, target, snapshot, onLog);
 
     return { generatedAt: new Date().toISOString(), schema, data };
   });

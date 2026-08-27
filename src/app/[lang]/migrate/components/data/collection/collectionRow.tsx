@@ -41,7 +41,8 @@ export const CollectionRow = ({
   return (
     <div
       className={cn(
-        'group flex items-center gap-1 px-2 hover:bg-accent/60',
+        'group flex items-center gap-1 border-b border-border/40 px-2 py-1',
+        'hover:bg-accent/60',
         active && 'bg-accent',
         dimmed && 'opacity-40',
       )}

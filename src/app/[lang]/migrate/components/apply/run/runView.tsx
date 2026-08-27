@@ -19,7 +19,6 @@ import { StatusMark } from './statusMark';
 
 type TProps = {
   run: TRun;
-  showSequenceResets?: boolean;
   onRunChange: (run: TRun) => void;
 
   onRetry: () => void;
@@ -30,7 +29,6 @@ type TProps = {
 
 export const RunView = ({
   run,
-  showSequenceResets = true,
   onRunChange,
   onRetry,
   isRecomparing = false,
@@ -82,7 +80,7 @@ export const RunView = ({
 
       {finished && <RunOutcome run={run} />}
 
-      {finished && showSequenceResets && <SequenceResets run={run} />}
+      {finished && <SequenceResets run={run} />}
 
       <RunLog run={run} />
 

@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useApplyRun } from '@/hooks/useApplyRun';
 import { useTranslate } from '@/hooks/useTranslate';
 import { hostOf, type TConnection } from '@/models/connection';
-import type { TPlan } from '@/models/plan';
+import { pickedKeys, type TPlan, type TRecordPicks } from '@/models/plan';
 
 import { DryRunReport } from './dryRun/dryRunReport';
 import { RunView } from './run/runView';
@@ -21,8 +21,8 @@ type TProps = {
   target: TConnection;
   plan: TPlan;
   dataSelection: Set<string>;
+  records: TRecordPicks;
   mirrorData: boolean;
-  sequencesConfirmed: boolean;
   force: boolean;
   isRecomparing: boolean;
   onRecompare: () => void;
@@ -34,8 +34,8 @@ export const ApplyStep = ({
   target,
   plan,
   dataSelection,
+  records,
   mirrorData,
-  sequencesConfirmed,
   force,
   isRecomparing,
   onRecompare,
@@ -53,21 +53,25 @@ export const ApplyStep = ({
     );
 
     return {
-      records: selected.reduce(
-        (total, row) => total + row.toCreate + (row.toUpdate ?? 0),
-        0,
-      ),
+      records: selected.reduce((total, row) => {
+        const picked = pickedKeys(records, row.collection);
+
+        return (
+          total + (picked ? picked.size : row.toCreate + (row.toUpdate ?? 0))
+        );
+      }, 0),
       deletes: mirrorData
         ? selected.reduce((total, row) => total + row.extraInTarget, 0)
         : 0,
       sequences: selected.length,
     };
-  }, [plan, dataSelection, mirrorData]);
+  }, [plan, dataSelection, records, mirrorData]);
 
   const applyRun = useApplyRun({
     source,
     target,
     collections,
+    records,
     schemaChanges: plan.schema.collections.length,
     force,
     mirrorData,
@@ -77,7 +81,6 @@ export const ApplyStep = ({
     return (
       <RunView
         run={applyRun.run}
-        showSequenceResets={!sequencesConfirmed}
         onRunChange={applyRun.setRun}
         onRetry={applyRun.apply}
         isRecomparing={isRecomparing}
@@ -91,7 +94,10 @@ export const ApplyStep = ({
       <h1 className="text-lg font-semibold">{translate('apply-title')}</h1>
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <SummaryTile label={translate('apply-tile-records')} value={counts.records} />
+        <SummaryTile
+          label={translate('apply-tile-records')}
+          value={counts.records}
+        />
         <SummaryTile
           label={translate('apply-tile-collections')}
           value={collections.length}

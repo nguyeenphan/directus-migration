@@ -1,4 +1,3 @@
-import { AUDIT_FIELDS } from '@/constants/run';
 import { SCHEMA_FILTERS } from '@/constants/schema';
 import { compareVersions } from '@/utils/version';
 
@@ -6,13 +5,7 @@ import type { TSequenceReset } from './run';
 
 export type TChangeKind =
   'add' | 'modify' | 'delete' | 'unchanged' | 'conflict' | 'blocked';
-
-export const isActionable = (kind: TChangeKind) =>
-  kind === 'add' || kind === 'modify' || kind === 'delete';
-
 export type TSchemaFilter = (typeof SCHEMA_FILTERS)[number];
-
-export type TSchemaObject = 'collection' | 'field' | 'relation';
 
 export type TFieldAttributeChange = {
   path: string;
@@ -49,11 +42,6 @@ export type TRelationChange = {
 
 export type TMetaScope = 'collections' | 'fields' | 'relations';
 
-/**
- * Meta keys the source snapshot carries that the target has no column for.
- * A downgraded source keeps the columns of the version it came from, so this
- * cannot be derived from the reported versions — only from the snapshots.
- */
 export type TMetaDrift = Record<TMetaScope, string[]>;
 
 export type TCompatibility = {
@@ -93,11 +81,7 @@ export const isIncompatible = (compatibility: TCompatibility) =>
   unknownMetaKeys(compatibility).length > 0;
 
 export const relationName = (relation: TRelationChange) =>
-  `${relation.collection}→${relation.relatedCollection ?? relation.field}`;
-
-export const schemaChangeCount = (plan: TSchemaPlan) =>
-  plan.collections.filter((entry) => entry.kind !== 'unchanged').length +
-  plan.relations.length;
+  `${relation.collection} → ${relation.relatedCollection ?? relation.field}`;
 
 export const destructiveChanges = (plan: TSchemaPlan) => [
   ...plan.collections.filter((entry) => entry.kind === 'delete'),
@@ -134,6 +118,28 @@ export type TDataChange = {
 
   primaryKey: string;
   hasAutoIncrement: boolean;
+
+  dependsOn?: string[];
+};
+
+export const missingDependencies = (
+  rows: TDataChange[],
+  selection: ReadonlySet<string>,
+): { collection: string; missing: string[] }[] => {
+  const byName = new Map(rows.map((row) => [row.collection, row]));
+
+  return rows
+    .filter((row) => selection.has(row.collection))
+    .map((row) => ({
+      collection: row.collection,
+      missing: (row.dependsOn ?? []).filter((name) => {
+        if (selection.has(name)) return false;
+
+        const parent = byName.get(name);
+        return !parent || parent.toCreate > 0;
+      }),
+    }))
+    .filter((entry) => entry.missing.length > 0);
 };
 
 export const sequenceResetsIn = (
@@ -179,8 +185,6 @@ export const isAuditOnly = (record: TRecordChange) =>
   record.fields.some((field) => field.kind === 'modify') &&
   changedFields(record).length === 0;
 
-export const AUDIT_FIELD_SET: ReadonlySet<string> = new Set(AUDIT_FIELDS);
-
 export type TPlan = {
   generatedAt: string;
   schema: TSchemaPlan;
@@ -192,9 +196,6 @@ export const isDeleteOnly = (row: TDataChange) =>
 
 export const isEmptyChange = (row: TDataChange) =>
   row.toCreate === 0 && row.extraInTarget === 0 && (row.toUpdate ?? 0) === 0;
-
-export const isEmptyPlan = (plan: TPlan) =>
-  schemaChangeCount(plan.schema) === 0 && plan.data.every(isEmptyChange);
 
 export const findParent = (
   collection: string,
@@ -252,3 +253,16 @@ export const groupTotals = (group: TCollectionGroup) =>
       }),
       { toCreate: 0, toUpdate: 0, updateUnknown: false, extraInTarget: 0 },
     );
+
+export type TRecordPicks = Record<string, string[]>;
+
+export const pickedKeys = (
+  picks: TRecordPicks | undefined,
+  collection: string,
+): Set<string> | null => {
+  const keys = picks?.[collection];
+  return keys ? new Set(keys) : null;
+};
+
+export const keepsRow = (picked: ReadonlySet<string> | null, key: unknown) =>
+  picked === null || picked.has(String(key));

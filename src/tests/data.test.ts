@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { fingerprint, isMissingCollection } from '@/api/data';
+import { fingerprint } from '@/lib/directus/data';
+import { isMissingCollection } from '@/lib/directus/errors';
 
 const SOURCE_ROW = {
   id: 'abc',
@@ -48,10 +49,55 @@ test('null and undefined read as the same absence', () => {
   );
 });
 
-test('a value change from null to empty string is still a change', () => {
-  assert.notEqual(
+test('an empty value reads the same however it is spelled', () => {
+  assert.equal(
     fingerprint({ id: 1, note: null }),
     fingerprint({ id: 1, note: '' }),
+  );
+});
+
+test('line endings do not make a record look changed', () => {
+  assert.equal(
+    fingerprint({ id: 1, body: '<p>a</p>\r\n<p>b</p>' }),
+    fingerprint({ id: 1, body: '<p>a</p>\n<p>b</p>' }),
+  );
+});
+
+test('a database that reorders object keys does not invent a change', () => {
+  assert.equal(
+    fingerprint({ id: 1, faq: [{ q: 'a', answer: 'b' }] }),
+    fingerprint({ id: 1, faq: [{ answer: 'b', q: 'a' }] }),
+  );
+});
+
+test('characters the eye cannot see do not count as a change', () => {
+  assert.equal(
+    fingerprint({ id: 1, body: '\u00a0a\u200b' }),
+    fingerprint({ id: 1, body: ' a' }),
+  );
+});
+
+test('a number and its text read the same', () => {
+  assert.equal(
+    fingerprint({ id: 1, price: 10 }),
+    fingerprint({ id: 1, price: '10' }),
+  );
+
+  assert.notEqual(
+    fingerprint({ id: 1, price: 10 }),
+    fingerprint({ id: 1, price: '10.00' }),
+  );
+});
+
+test('real text changes still register', () => {
+  assert.notEqual(
+    fingerprint({ id: 1, body: 'a b' }),
+    fingerprint({ id: 1, body: 'a  b' }),
+  );
+
+  assert.notEqual(
+    fingerprint({ id: 1, body: 'a' }),
+    fingerprint({ id: 1, body: 'A' }),
   );
 });
 

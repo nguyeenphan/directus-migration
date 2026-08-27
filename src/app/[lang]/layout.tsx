@@ -3,10 +3,10 @@ import { Geist_Mono, Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
 
 import { SUPPORTED_LANGUAGES } from '@/constants/locales';
+import { getDictionary } from '@/lib/i18n/dictionary';
+import { createTranslate } from '@/lib/i18n/translate';
 import { isLocale } from '@/models/common';
-import { getDictionary } from '@/providers/dictionary';
 import { cn } from '@/utils/cn';
-import { createTranslate } from '@/utils/translate';
 
 import '../globals.css';
 

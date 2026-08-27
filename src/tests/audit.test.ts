@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { blankAudit, withoutAuditUsers } from '@/api/runner';
+import { blankAudit, withoutAuditUsers } from '@/lib/directus/runner';
 
 const ROW = {
   id: 7,

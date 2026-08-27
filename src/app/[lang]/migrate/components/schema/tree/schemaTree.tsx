@@ -69,7 +69,7 @@ export const SchemaTree = ({
             {relations.map((relation) => (
               <li
                 key={`${relation.collection}.${relation.field}`}
-                className="flex items-center gap-2 px-2"
+                className="flex items-center gap-2 border-b border-border/40 px-2 py-1"
               >
                 <span className="w-4" />
                 <DiffMark
@@ -92,7 +92,10 @@ export const SchemaTree = ({
         >
           {showUnchanged &&
             unchanged.map((name) => (
-              <li key={name} className="flex items-center gap-2 px-2">
+              <li
+                key={name}
+                className="flex items-center gap-2 border-b border-border/40 px-2 py-1"
+              >
                 <span className="w-4" />
                 <DiffMark
                   kind="unchanged"

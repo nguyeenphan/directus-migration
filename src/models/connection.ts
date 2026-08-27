@@ -1,9 +1,3 @@
-import {
-  API_PROXY_URL,
-  apiAssetUrl,
-  DIRECTUS_URL_PARAM,
-  THUMBNAIL_SIZE,
-} from '@/api';
 import { withoutTrailingSlash } from '@/utils/url';
 
 export type TConnection = {
@@ -55,16 +49,4 @@ export const parseConnection = (value: unknown): TConnection => {
     url: parsed.origin + withoutTrailingSlash(parsed.pathname),
     token,
   };
-};
-
-export const assetThumbnailUrl = (connection: TConnection, id: string) => {
-  const query = new URLSearchParams({
-    width: String(THUMBNAIL_SIZE),
-    height: String(THUMBNAIL_SIZE),
-    fit: 'cover',
-    access_token: connection.token,
-    [DIRECTUS_URL_PARAM]: connection.url,
-  });
-
-  return `${API_PROXY_URL}${apiAssetUrl(id)}?${query}`;
 };

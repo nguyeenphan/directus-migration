@@ -1,51 +1,62 @@
 'use client';
 
-import { Check, Info, Loader2, TriangleAlert } from 'lucide-react';
-import { useMemo } from 'react';
+import {
+  Check,
+  ListRestart,
+  Loader2,
+  RotateCcw,
+  TriangleAlert,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
 
+import { generateSqlScript } from '@/app/[lang]/migrate/operations';
 import { CopyButton } from '@/components/common/copyButton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { CHANGE_GLYPH, CHANGE_TEXT } from '@/constants/changeStyles';
 import { useRecordBrowser } from '@/hooks/useRecordBrowser';
 import { useTranslate } from '@/hooks/useTranslate';
+import type { TTranslationKey } from '@/lib/i18n/translate';
 import type { TConnection } from '@/models/connection';
 import {
   isDeleteOnly,
   isEmptyChange,
+  missingDependencies,
+  pickedKeys,
   sequenceResetsIn,
   type TDataChange,
+  type TRecordPicks,
 } from '@/models/plan';
 import { sequenceResetSql } from '@/models/run';
-import type { TTranslationKey } from '@/utils/translate';
 
 import { RecompareButton } from '../recompareButton';
+import { SqlScriptButton } from '../sqlScriptButton';
 import { CollectionList } from './collection/collectionList';
 import { RecordDetail } from './record/recordDetail';
 import { RecordList } from './record/recordList';
-import { SqlScriptButton } from './sqlScriptButton';
 
 type TProps = {
   source: TConnection;
   target: TConnection;
   rows: TDataChange[];
   selection: Set<string>;
+  records: TRecordPicks;
   mirrorData: boolean;
-  confirmedSql: string;
   onSelectionChange: (selection: Set<string>) => void;
+  onRecordsChange: (records: TRecordPicks) => void;
   onMirrorDataChange: (mirror: boolean) => void;
-  onConfirmedSqlChange: (sql: string) => void;
   isRecomparing: boolean;
   onRecompare: () => void;
   continueBlocked?: TTranslationKey;
@@ -57,17 +68,18 @@ export const DataStep = ({
   target,
   rows,
   selection,
+  records,
   mirrorData,
-  confirmedSql,
   onSelectionChange,
+  onRecordsChange,
   onMirrorDataChange,
-  onConfirmedSqlChange,
   isRecomparing,
   onRecompare,
   continueBlocked,
   onContinue,
 }: TProps) => {
   const translate = useTranslate();
+  const [showSequenceSql, setShowSequenceSql] = useState(false);
   const browser = useRecordBrowser(source, target);
 
   const totals = useMemo(
@@ -88,7 +100,10 @@ export const DataStep = ({
     [rows, selection],
   );
 
-  const sequencesDone = confirmedSql === sequenceSql;
+  const dependencies = useMemo(
+    () => missingDependencies(rows, selection),
+    [rows, selection],
+  );
 
   const toggle = (collections: string[], isSelected: boolean) => {
     const next = new Set(selection);
@@ -99,6 +114,24 @@ export const DataStep = ({
     }
 
     onSelectionChange(next);
+  };
+
+  const pickRecords = (keys: string[], isPicked: boolean) => {
+    const collection = browser.active;
+    if (!collection) return;
+
+    const all = browser.records.map((record) => record.key);
+    const current = records[collection] ?? all;
+    const picked = isPicked
+      ? all.filter((key) => current.includes(key) || keys.includes(key))
+      : current.filter((key) => !keys.includes(key));
+
+    const next = { ...records, [collection]: picked };
+    if (picked.length === all.length) delete next[collection];
+
+    onRecordsChange(next);
+
+    if (isPicked && !selection.has(collection)) toggle([collection], true);
   };
 
   const setMirror = (mirror: boolean) => {
@@ -169,9 +202,20 @@ export const DataStep = ({
           )}
           {browser.detail?.phase === 'error' && (
             <div className="h-full border-2 border-destructive p-3">
-              <p className="font-semibold text-destructive">
-                {translate('data-load-failed')}
-              </p>
+              <div className="flex items-start gap-2">
+                <p className="font-semibold text-destructive">
+                  {translate('data-load-failed')}
+                </p>
+                <button
+                  type="button"
+                  onClick={browser.reload}
+                  title={translate('plan-retry')}
+                  className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <RotateCcw className="size-4" />
+                  <span className="sr-only">{translate('plan-retry')}</span>
+                </button>
+              </div>
               <pre className="identifier mt-1 overflow-x-auto text-xs">
                 {browser.detail.error}
               </pre>
@@ -181,7 +225,9 @@ export const DataStep = ({
             <RecordList
               records={browser.records}
               activeKey={browser.activeKey}
+              picked={pickedKeys(records, browser.active ?? '')}
               onSelect={browser.select}
+              onPick={pickRecords}
             />
           )}
         </ResizablePanel>
@@ -192,53 +238,49 @@ export const DataStep = ({
           <RecordDetail
             record={browser.record}
             position={{ index: browser.index, total: browser.records.length }}
-            source={source}
-            target={target}
             onNavigate={browser.step}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      {sequenceSql && (
+      {dependencies.length > 0 && (
         <section className="border border-warning">
           <div className="flex items-center gap-2 border-b px-3 py-1.5">
             <TriangleAlert className="size-4 shrink-0 text-warning" />
             <p className="text-sm font-semibold text-warning">
-              {translate('data-sequence-title')}
+              {translate('data-dependency-title', {
+                count: dependencies.length,
+              })}
             </p>
-            <div className="ml-auto flex items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="text-muted-foreground transition-colors hover:text-foreground">
-                    <Info className="size-3.5" />
-                    <span className="sr-only">
-                      {translate('data-sequence-detail')}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{translate('data-sequence-detail')}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <CopyButton
-                label={translate('data-sequence-title')}
-                text={() => sequenceSql}
-              />
-            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={() =>
+                toggle(
+                  dependencies.flatMap((entry) => entry.missing),
+                  true,
+                )
+              }
+            >
+              {translate('data-dependency-fix')}
+            </Button>
           </div>
 
           <div className="px-3 py-2">
-            <pre className="identifier max-h-40 overflow-auto bg-muted p-2 text-xs">
-              {sequenceSql}
-            </pre>
-            <label className="mt-2 flex items-start gap-2 text-sm">
-              <Checkbox
-                checked={sequencesDone}
-                onCheckedChange={(checked) =>
-                  onConfirmedSqlChange(checked ? sequenceSql : '')
-                }
-                className="mt-0.5"
-              />
-              {translate('data-sequence-confirm')}
-            </label>
+            <p className="text-xs text-muted-foreground">
+              {translate('data-dependency-detail')}
+            </p>
+            <ul className="diff-dense mt-1 max-h-32 overflow-y-auto">
+              {dependencies.map((entry) => (
+                <li key={entry.collection} className="identifier text-xs">
+                  {translate('data-dependency-line', {
+                    collection: entry.collection,
+                    missing: entry.missing.join(', '),
+                  })}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       )}
@@ -278,12 +320,30 @@ export const DataStep = ({
         </span>
 
         <span className="ml-auto flex items-center gap-2">
+          {sequenceSql && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              onClick={() => setShowSequenceSql(true)}
+            >
+              <ListRestart className="size-4" />
+              {translate('data-sequence-button')}
+            </Button>
+          )}
           <SqlScriptButton
-            source={source}
-            target={target}
-            rows={rows}
-            selection={selection}
-            mirrorData={mirrorData}
+            disabled={selection.size === 0}
+            generate={(onLog) =>
+              generateSqlScript(
+                source,
+                target,
+                rows,
+                [...selection],
+                mirrorData,
+                records,
+                onLog,
+              )
+            }
           />
           <RecompareButton
             isRecomparing={isRecomparing}
@@ -300,6 +360,29 @@ export const DataStep = ({
           {translate('data-continue')}
         </Button>
       </footer>
+
+      <Dialog open={showSequenceSql} onOpenChange={setShowSequenceSql}>
+        <DialogContent className="w-[95vw] max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>{translate('data-sequence-title')}</DialogTitle>
+            <DialogDescription>
+              {translate('data-sequence-detail')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative min-h-0 flex-1">
+            <div className="absolute top-2 right-2">
+              <CopyButton
+                label={translate('data-sequence-title')}
+                text={() => sequenceSql}
+              />
+            </div>
+            <pre className="identifier h-full overflow-auto bg-muted p-3 pr-12 text-xs whitespace-pre">
+              {sequenceSql}
+            </pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

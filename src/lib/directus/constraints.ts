@@ -1,6 +1,6 @@
 import { readFields, updateField } from '@directus/sdk';
 
-import type { TDirectusClient } from '@/providers/directusClient';
+import type { TDirectusClient } from '@/lib/directus/client';
 
 export type TRelaxedField = {
   collection: string;
@@ -44,7 +44,7 @@ const blocksSkeletonInsert = (field: TField) => {
   );
 };
 
-export type TFieldRecord = TField & { collection: string; field: string };
+type TFieldRecord = TField & { collection: string; field: string };
 
 export const relaxableFields = (
   fields: readonly TFieldRecord[],

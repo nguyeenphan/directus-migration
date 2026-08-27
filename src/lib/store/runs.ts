@@ -34,11 +34,6 @@ export const putRun = (run: TRun) => {
 
 export const getRun = (id: string) => store.runs.get(id) ?? null;
 
-export const listRuns = () =>
-  [...store.runs.values()].sort((a, b) =>
-    b.startedAt.localeCompare(a.startedAt),
-  );
-
 export const putBackup = (id: string, backup: TBackup) =>
   store.backups.set(id, backup);
 

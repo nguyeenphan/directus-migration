@@ -2,27 +2,27 @@
 
 import { useState } from 'react';
 
-import type { TPlan } from '@/models/plan';
+import type { TPlan, TRecordPicks } from '@/models/plan';
 
 export const useMigrationSelections = () => {
   const [schema, setSchema] = useState<Set<string>>(new Set());
   const [applySchema, setApplySchema] = useState(true);
   const [data, setData] = useState<Set<string>>(new Set());
+  const [records, setRecords] = useState<TRecordPicks>({});
   const [mirrorData, setMirrorData] = useState(false);
-  const [confirmedSql, setConfirmedSql] = useState('');
 
   return {
     schema,
     applySchema,
     data,
+    records,
     mirrorData,
-    confirmedSql,
 
     setSchema,
     setApplySchema,
     setData,
+    setRecords,
     setMirrorData,
-    setConfirmedSql,
 
     resetFor: (plan: TPlan) => {
       setSchema(
@@ -35,8 +35,8 @@ export const useMigrationSelections = () => {
             .map((row) => row.collection),
         ),
       );
+      setRecords({});
       setMirrorData(false);
-      setConfirmedSql('');
     },
   };
 };

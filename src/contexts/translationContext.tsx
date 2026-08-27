@@ -2,12 +2,12 @@
 
 import { createContext, use, useMemo } from 'react';
 
-import type { TLocale } from '@/models/common';
 import {
   createTranslate,
   type TDictionary,
   type TTranslate,
-} from '@/utils/translate';
+} from '@/lib/i18n/translate';
+import type { TLocale } from '@/models/common';
 
 type TTranslationContext = {
   locale: TLocale;

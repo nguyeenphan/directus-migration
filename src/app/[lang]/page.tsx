@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 
+import { route, ROUTES } from '@/lib/routes';
 import { isLocale } from '@/models/common';
-import { route, ROUTES } from '@/routes';
 
 const Home = async ({ params }: PageProps<'/[lang]'>) => {
   const { lang } = await params;

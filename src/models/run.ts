@@ -2,6 +2,7 @@ import { RUN_STAGES } from '@/constants/run';
 
 import type { TRow } from './common';
 import type { TConnection } from './connection';
+import type { TRecordPicks } from './plan';
 
 export type TStage = (typeof RUN_STAGES)[number];
 
@@ -19,13 +20,13 @@ export type TRunUnit = {
 
 export type TLogLevel = 'info' | 'success' | 'warn' | 'error';
 
-export type TLogLine = {
+type TLogLine = {
   at: string;
   level: TLogLevel;
   message: string;
 };
 
-export type TRunStatus =
+type TRunStatus =
   'running' | 'succeeded' | 'partial' | 'failed' | 'stopped' | 'rolled-back';
 
 export const RUN_STATUS_LEVEL: Record<TRunStatus, TLogLevel> = {
@@ -41,6 +42,7 @@ export type TRunRequest = {
   source: TConnection;
   target: TConnection;
   collections: string[];
+  records: TRecordPicks;
   applySchema: boolean;
   schemaCollections: string[];
   force: boolean;
@@ -90,7 +92,7 @@ export const sequenceResetSql = (resets: TSequenceReset[]) =>
     )
     .join('\n');
 
-export const stageUnits = (run: TRun, stage: TStage) =>
+const stageUnits = (run: TRun, stage: TStage) =>
   run.units.filter((unit) => unit.stage === stage);
 
 export const wroteData = (run: TRun) => stageUnits(run, 'data').length > 0;
@@ -118,7 +120,7 @@ export const runProgress = (run: TRun) => {
   };
 };
 
-export const failedUnits = (run: TRun) =>
+const failedUnits = (run: TRun) =>
   run.units.filter((unit) => unit.status === 'failed');
 
 export const runOutcome = (run: TRun) => ({

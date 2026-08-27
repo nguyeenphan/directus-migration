@@ -3,8 +3,8 @@ import 'server-only';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import type { TDictionary } from '@/lib/i18n/translate';
 import type { TLocale } from '@/models/common';
-import type { TDictionary } from '@/utils/translate';
 
 const dictionaryPath = (locale: TLocale) =>
   path.join(process.cwd(), 'public', 'locales', `${locale}.json`);

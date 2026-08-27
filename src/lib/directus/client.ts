@@ -1,6 +1,6 @@
 import { createDirectus, rest, staticToken } from '@directus/sdk';
 
-import { API_PROXY_URL, DIRECTUS_URL_HEADER } from '@/api';
+import { API_PROXY_URL, DIRECTUS_URL_HEADER } from '@/constants/directus';
 import type { TConnection } from '@/models/connection';
 
 export const clientFor = ({ url, token }: TConnection) =>

@@ -4,7 +4,7 @@ import {
   DIRECTUS_UPSTREAM_HEADER,
   DIRECTUS_URL_HEADER,
   DIRECTUS_URL_PARAM,
-} from '@/api';
+} from '@/constants/directus';
 import { resolveUpstream, upstreamTarget } from '@/models/upstream';
 
 const ALLOWED_HOSTS = (process.env.DIRECTUS_ALLOWED_HOSTS ?? '')

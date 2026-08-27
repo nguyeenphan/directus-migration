@@ -5,6 +5,9 @@ import {
   findParent,
   groupCollections,
   isDeleteOnly,
+  keepsRow,
+  missingDependencies,
+  pickedKeys,
   sequenceResetsIn,
   type TDataChange,
 } from '@/models/plan';
@@ -122,5 +125,61 @@ test('the whole three-level branch collapses into one group', () => {
       'homeLoanGeneralInfo_translations',
       'homeLoanGeneralInfo_translations_instructionAction',
     ],
+  );
+});
+
+test('a collection with no picks keeps every row', () => {
+  const picked = pickedKeys({ other: ['1'] }, 'articles');
+
+  assert.equal(picked, null);
+  assert.ok(keepsRow(picked, 42));
+});
+
+test('a collection with picks keeps only the picked keys', () => {
+  const picked = pickedKeys({ articles: ['1', '2'] }, 'articles');
+
+  assert.deepEqual(picked, new Set(['1', '2']));
+  assert.ok(keepsRow(picked, 1));
+  assert.ok(!keepsRow(picked, 3));
+});
+
+test('an empty pick list keeps nothing', () => {
+  const picked = pickedKeys({ articles: [] }, 'articles');
+
+  assert.ok(!keepsRow(picked, '1'));
+});
+
+const dependent = (
+  collection: string,
+  dependsOn: string[],
+  toCreate = 0,
+): TDataChange => ({ ...dataRow(collection, false), dependsOn, toCreate });
+
+test('a selected collection pointing at an unselected one is reported', () => {
+  const rows = [
+    dependent('articles', ['authors']),
+    dependent('authors', [], 3),
+  ];
+
+  assert.deepEqual(missingDependencies(rows, new Set(['articles'])), [
+    { collection: 'articles', missing: ['authors'] },
+  ]);
+});
+
+test('a parent the target already holds in full is not reported', () => {
+  const rows = [dependent('articles', ['authors']), dependent('authors', [])];
+
+  assert.deepEqual(missingDependencies(rows, new Set(['articles'])), []);
+});
+
+test('a parent that travels along is not reported', () => {
+  const rows = [
+    dependent('articles', ['authors']),
+    dependent('authors', [], 3),
+  ];
+
+  assert.deepEqual(
+    missingDependencies(rows, new Set(['articles', 'authors'])),
+    [],
   );
 });

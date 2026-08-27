@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { relaxableFields, withoutUuidSpecial } from '@/api/constraints';
+import {
+  relaxableFields,
+  withoutUuidSpecial,
+} from '@/lib/directus/constraints';
 
 const ALIAS_REQUIRED = {
   collection: 'productLandingPageInformation',

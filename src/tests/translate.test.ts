@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createTranslate } from '@/utils/translate';
+import { createTranslate } from '@/lib/i18n/translate';
 
 import en from '../../public/locales/en.json';
 import vi from '../../public/locales/vi.json';

@@ -5,12 +5,14 @@ import { useState, useTransition } from 'react';
 import { beginRun, readRun, runDryRun } from '@/app/[lang]/migrate/operations';
 import type { TConnection } from '@/models/connection';
 import type { TDryRunReport } from '@/models/dryRun';
+import type { TRecordPicks } from '@/models/plan';
 import type { TRun } from '@/models/run';
 
 export const useApplyRun = ({
   source,
   target,
   collections,
+  records,
   schemaChanges,
   force,
   mirrorData,
@@ -18,6 +20,7 @@ export const useApplyRun = ({
   source: TConnection;
   target: TConnection;
   collections: string[];
+  records: TRecordPicks;
   schemaChanges: number;
   force: boolean;
   mirrorData: boolean;
@@ -35,6 +38,7 @@ export const useApplyRun = ({
           source,
           target,
           collections,
+          records,
           applySchema: false,
           schemaCollections: [],
           force,
@@ -66,6 +70,7 @@ export const useApplyRun = ({
           target,
           collections,
           schemaChanges,
+          records,
         );
 
         if (result.ok) setReport(result.data);

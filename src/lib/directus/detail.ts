@@ -1,11 +1,13 @@
 import {
   readFieldsByCollection,
+  readFiles,
   readItems,
   readRelations,
 } from '@directus/sdk';
 
-import { SYSTEM_COLLECTIONS } from '@/api';
+import { SYSTEM_COLLECTIONS } from '@/constants/directus';
 import { AUDIT_FIELDS, MAX_DETAIL_RECORDS } from '@/constants/run';
+import { clientFor, type TDirectusClient } from '@/lib/directus/client';
 import type { TResult, TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
 import type {
@@ -14,10 +16,13 @@ import type {
   TRecordChange,
   TValueDisplay,
 } from '@/models/plan';
-import { clientFor, type TDirectusClient } from '@/providers/directusClient';
 import { formatValue, isSameValue, recordLabel } from '@/utils/formatValue';
 import { withResult } from '@/utils/result';
 import { asRows } from '@/utils/rows';
+
+import { orMissing } from './errors';
+import { readAll } from './paging';
+import { readColumns, unknownColumns } from './schema';
 
 type TFieldShape = {
   field: string;
@@ -42,13 +47,23 @@ export const getRecordChanges = (
     const primaryKey = primaryKeyOfFields(fields);
     const columns = columnsOfFields(fields);
 
+    const known = await readColumns(to, collection);
+    const missing = unknownColumns(columns, known);
+    const usable = columns.filter((name) => !missing.includes(name));
+    const shared = usable.length > 0 ? usable : columns;
+
     const [shapes, sourceRows, targetRows] = await Promise.all([
       readShapes(from, collection, fields),
-      readRows(from, collection, primaryKey, columns),
-      readTargetRows(to, collection, primaryKey, columns),
+      readRows(from, collection, primaryKey, shared),
+      readTargetRows(to, collection, primaryKey, shared),
     ]);
 
-    const changes = compare(shapes, primaryKey, sourceRows, targetRows);
+    const changes = compare(
+      shapes.filter((shape) => !missing.includes(shape.field)),
+      primaryKey,
+      sourceRows,
+      targetRows,
+    ).slice(0, MAX_DETAIL_RECORDS);
 
     await resolveLabels(from, to, shapes, changes);
 
@@ -79,34 +94,19 @@ const columnsOfFields = (fields: TFieldDefinition[]) => {
   return columns.length > 0 ? columns : [primaryKeyOfFields(fields)];
 };
 
-const readRows = async (
+const readRows = (
   client: TDirectusClient,
   collection: string,
   primaryKey: string,
   columns: string[],
-) =>
-  asRows(
-    await client.request<TRow[]>(
-      readItems(collection, {
-        sort: [primaryKey],
-        limit: MAX_DETAIL_RECORDS,
-        fields: columns,
-      }),
-    ),
-  );
+) => readAll(client, collection, primaryKey, columns);
 
 const readTargetRows = async (
   client: TDirectusClient,
   collection: string,
   primaryKey: string,
   columns: string[],
-) => {
-  try {
-    return await readRows(client, collection, primaryKey, columns);
-  } catch {
-    return [];
-  }
-};
+) => (await orMissing(readRows(client, collection, primaryKey, columns))) ?? [];
 
 const compare = (
   shapes: TFieldShape[],
@@ -329,6 +329,31 @@ const labelsFor = async (
   ids: string[],
 ): Promise<[string, string][]> => {
   if (ids.length === 0) return [];
+
+  // Files live behind /files, not /items — readItems would 403 on them and the
+  // label would fall back to the bare uuid.
+  if (collection === SYSTEM_COLLECTIONS.files) {
+    try {
+      const rows = asRows(
+        await client.request<TRow[]>(
+          readFiles({
+            filter: { id: { _in: ids } },
+            limit: ids.length,
+            fields: ['id', 'filename_disk', 'filename_download', 'title'],
+          }),
+        ),
+      );
+
+      return rows.map((row) => {
+        const id = String(row.id);
+        const disk = row.filename_disk;
+
+        return [id, typeof disk === 'string' ? disk : recordLabel(row, id)];
+      });
+    } catch {
+      return [];
+    }
+  }
 
   try {
     const { primaryKey, columns } = await readShape(client, collection);

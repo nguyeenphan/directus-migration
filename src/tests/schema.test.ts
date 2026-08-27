@@ -10,7 +10,7 @@ import {
   stripMetaChanges,
   unknownColumns,
   withoutUnknownKeys,
-} from '@/api/schema';
+} from '@/lib/directus/schema';
 import { unknownMetaKeys } from '@/models/plan';
 
 const DIRECTION_DIFF = {
@@ -275,10 +275,10 @@ test('a fresh target with no collections is still measured, via its columns', ()
     relations: new Set<string>(),
   };
 
-  assert.deepEqual(compatibilityOf(V12, fresh, columns).unknownMeta.collections, [
-    'autosave_revision_interval',
-    'status',
-  ]);
+  assert.deepEqual(
+    compatibilityOf(V12, fresh, columns).unknownMeta.collections,
+    ['autosave_revision_interval', 'status'],
+  );
 });
 
 test('the column lookup wins over what the target objects happen to carry', () => {
@@ -288,7 +288,10 @@ test('the column lookup wins over what the target objects happen to carry', () =
     relations: new Set<string>(),
   };
 
-  assert.deepEqual(compatibilityOf(V12, V11, columns).unknownMeta.collections, []);
+  assert.deepEqual(
+    compatibilityOf(V12, V11, columns).unknownMeta.collections,
+    [],
+  );
 });
 
 test('a target that cannot be read drifts by nothing, rather than by everything', () => {

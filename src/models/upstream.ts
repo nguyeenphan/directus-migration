@@ -1,4 +1,4 @@
-import { DIRECTUS_URL_PARAM } from '@/api';
+import { DIRECTUS_URL_PARAM } from '@/constants/directus';
 import { withoutTrailingSlash } from '@/utils/url';
 
 export const resolveUpstream = (

@@ -1,22 +1,25 @@
-import { restoreConstraints } from '@/api/constraints';
-import { getRecordChanges } from '@/api/detail';
-import { dryRun } from '@/api/dryRun';
-import { buildPlan } from '@/api/plan';
-import { probeConnection } from '@/api/probe';
-import { requestStop, rollbackRun, startRun } from '@/api/runner';
-import { buildSqlScript } from '@/api/sqlScript';
+import { clientFor } from '@/lib/directus/client';
+import { restoreConstraints } from '@/lib/directus/constraints';
+import { getRecordChanges } from '@/lib/directus/detail';
+import { dryRun } from '@/lib/directus/dryRun';
+import { buildPlan } from '@/lib/directus/plan';
+import { probeConnection } from '@/lib/directus/probe';
+import { requestStop, rollbackRun, startRun } from '@/lib/directus/runner';
+import { buildSchemaSqlScript } from '@/lib/directus/schemaSql';
+import { buildSqlScript } from '@/lib/directus/sqlScript';
+import { clearPendingRelax, type TPendingRelax } from '@/lib/store/constraints';
+import { getBackup, getRun } from '@/lib/store/runs';
 import type { TResult } from '@/models/common';
 import { parseConnection } from '@/models/connection';
 import type { TDryRunReport } from '@/models/dryRun';
-import type { TDataChange, TPlan, TRecordChange } from '@/models/plan';
+import type {
+  TDataChange,
+  TPlan,
+  TRecordChange,
+  TRecordPicks,
+} from '@/models/plan';
 import type { TProbeResult } from '@/models/probe';
 import type { TRun } from '@/models/run';
-import {
-  clearPendingRelax,
-  type TPendingRelax,
-} from '@/providers/constraintStore';
-import { clientFor } from '@/providers/directusClient';
-import { getBackup, getRun } from '@/providers/runStore';
 import { withResult } from '@/utils/result';
 
 export async function testConnection(
@@ -64,12 +67,14 @@ export async function runDryRun(
   target: unknown,
   collections: string[],
   schemaChanges: number,
+  records: TRecordPicks,
 ): Promise<TResult<TDryRunReport>> {
   return dryRun(
     parseConnection(source),
     parseConnection(target),
     collections,
     schemaChanges,
+    records,
   );
 }
 
@@ -77,6 +82,7 @@ export async function beginRun({
   source,
   target,
   collections,
+  records,
   applySchema,
   schemaCollections,
   force,
@@ -85,6 +91,7 @@ export async function beginRun({
   source: unknown;
   target: unknown;
   collections: string[];
+  records?: TRecordPicks;
   applySchema: boolean;
   schemaCollections: string[];
   force: boolean;
@@ -101,6 +108,7 @@ export async function beginRun({
     source: from,
     target: to,
     collections,
+    records: records ?? {},
     applySchema,
     schemaCollections,
     force,
@@ -157,6 +165,8 @@ export async function generateSqlScript(
   rows: TDataChange[],
   selection: string[],
   mirrorData: boolean,
+  records: TRecordPicks,
+  onLog?: (line: string) => void,
 ): Promise<TResult<string>> {
   return buildSqlScript(
     parseConnection(source),
@@ -164,10 +174,28 @@ export async function generateSqlScript(
     rows,
     new Set(selection),
     mirrorData,
+    records,
+    onLog,
   );
 }
 
 export async function readBackup(id: string): Promise<string | null> {
   const backup = getBackup(id);
   return backup ? JSON.stringify(backup, null, 2) : null;
+}
+
+export async function generateSchemaSqlScript(
+  source: unknown,
+  target: unknown,
+  force: boolean,
+  selection: string[],
+  onLog?: (line: string) => void,
+): Promise<TResult<string>> {
+  return buildSchemaSqlScript(
+    parseConnection(source),
+    parseConnection(target),
+    force,
+    new Set(selection),
+    onLog,
+  );
 }

@@ -11,12 +11,17 @@ const ready: TFlowState = {
   fingerprint: 'a',
   runInProgress: false,
   hasDataSelected: true,
-  sequencesPending: false,
-  sequencesConfirmed: false,
+  dependenciesMissing: false,
 };
 
 test('a ready flow blocks nothing', () => {
   assert.deepEqual(blockedSteps(ready), {});
+});
+
+test('a collection whose foreign keys point outside the selection blocks apply', () => {
+  const blocked = blockedSteps({ ...ready, dependenciesMissing: true });
+
+  assert.equal(blocked.apply, 'blocked-missing-dependencies');
 });
 
 test('an unprobed connection closes every review step', () => {
@@ -37,13 +42,6 @@ test('an empty selection closes apply but leaves data open', () => {
   const blocked = blockedSteps({ ...ready, hasDataSelected: false });
 
   assert.equal(blocked.apply, 'blocked-nothing-selected');
-  assert.equal(blocked.data, undefined);
-});
-
-test('an unconfirmed sequence script only closes apply', () => {
-  const blocked = blockedSteps({ ...ready, sequencesPending: true });
-
-  assert.equal(blocked.apply, 'blocked-sequences-unconfirmed');
   assert.equal(blocked.data, undefined);
 });
 

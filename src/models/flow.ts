@@ -1,5 +1,5 @@
 import { STEPS } from '@/constants/steps';
-import type { TTranslationKey } from '@/utils/translate';
+import type { TTranslationKey } from '@/lib/i18n/translate';
 
 export type TStep = (typeof STEPS)[number];
 
@@ -12,8 +12,7 @@ export type TFlowState = {
   fingerprint: string;
   runInProgress: boolean;
   hasDataSelected: boolean;
-  sequencesPending: boolean;
-  sequencesConfirmed: boolean;
+  dependenciesMissing: boolean;
 };
 
 export const blockedSteps = (state: TFlowState): TBlocked => {
@@ -34,8 +33,8 @@ export const blockedSteps = (state: TFlowState): TBlocked => {
 
   if (!state.hasDataSelected) return { apply: 'blocked-nothing-selected' };
 
-  if (state.sequencesPending && !state.sequencesConfirmed) {
-    return { apply: 'blocked-sequences-unconfirmed' };
+  if (state.dependenciesMissing) {
+    return { apply: 'blocked-missing-dependencies' };
   }
 
   return {};
