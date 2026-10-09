@@ -45,8 +45,27 @@ export const subscribeToPendingRelax = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
-export const putPendingRelax = (entry: TPendingRelax) =>
-  write([...read().filter((held) => held.runId !== entry.runId), entry]);
+export const pendingRelaxFor = (targetHost: string): TRelaxedField[] =>
+  read()
+    .filter((held) => held.targetHost === targetHost)
+    .flatMap((held) => held.fields);
 
-export const clearPendingRelax = (runId: string) =>
-  write(read().filter((held) => held.runId !== runId));
+// One entry per target: the caller has already folded what was outstanding
+// for that host into `entry.fields`, so the older entries are subsumed.
+export const putPendingRelax = (entry: TPendingRelax) =>
+  write([
+    ...read().filter((held) => held.targetHost !== entry.targetHost),
+    entry,
+  ]);
+
+export const settlePendingRelax = (
+  runId: string,
+  stillRelaxed: TRelaxedField[],
+) =>
+  write(
+    read().flatMap((held) => {
+      if (held.runId !== runId) return [held];
+
+      return stillRelaxed.length > 0 ? [{ ...held, fields: stillRelaxed }] : [];
+    }),
+  );

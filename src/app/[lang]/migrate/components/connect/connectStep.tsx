@@ -21,7 +21,6 @@ type TProps = {
   force: boolean;
   canContinue: boolean;
   isPlanning: boolean;
-  planError: string | null;
   onChange: (side: TSide, connection: TConnection) => void;
   onProbe: (side: TSide, result: TProbeResult | null) => void;
   onForceChange: (force: boolean) => void;
@@ -38,7 +37,6 @@ export const ConnectStep = ({
   force,
   canContinue,
   isPlanning,
-  planError,
   onChange,
   onProbe,
   onForceChange,
@@ -92,17 +90,6 @@ export const ConnectStep = ({
           force={force}
           onForceChange={onForceChange}
         />
-      )}
-
-      {planError && (
-        <div className="rounded-base border-2 border-destructive bg-secondary-background p-3">
-          <p className="font-heading text-destructive">
-            {translate('plan-failed')}
-          </p>
-          <pre className="identifier mt-1 overflow-x-auto text-sm">
-            {planError}
-          </pre>
-        </div>
       )}
 
       <div className="flex justify-end items-center gap-3">

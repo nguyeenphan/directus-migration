@@ -1,13 +1,12 @@
 import { clientFor } from '@/lib/directus/client';
 import { restoreConstraints } from '@/lib/directus/constraints';
 import { getRecordChanges } from '@/lib/directus/detail';
-import { dryRun } from '@/lib/directus/dryRun';
 import { buildPlan } from '@/lib/directus/plan';
 import { probeConnection } from '@/lib/directus/probe';
-import { requestStop, rollbackRun, startRun } from '@/lib/directus/runner';
-import { buildSchemaSqlScript } from '@/lib/directus/schemaSql';
-import { buildSqlScript } from '@/lib/directus/sqlScript';
-import { clearPendingRelax, type TPendingRelax } from '@/lib/store/constraints';
+import {
+  settlePendingRelax,
+  type TPendingRelax,
+} from '@/lib/store/constraints';
 import { getBackup, getRun } from '@/lib/store/runs';
 import type { TResult } from '@/models/common';
 import { parseConnection } from '@/models/connection';
@@ -16,11 +15,16 @@ import type {
   TDataChange,
   TPlan,
   TRecordChange,
-  TRecordPicks,
+  TRecordExclusions,
 } from '@/models/plan';
 import type { TProbeResult } from '@/models/probe';
 import type { TRun } from '@/models/run';
+import { describeError } from '@/utils/describeError';
 import { withResult } from '@/utils/result';
+
+// Loaded when first needed: the connect step only ever probes, and the runner
+// and the SQL generators are most of this module's weight.
+const loadRunner = () => import('@/lib/directus/runner');
 
 export async function testConnection(
   connection: unknown,
@@ -67,14 +71,16 @@ export async function runDryRun(
   target: unknown,
   collections: string[],
   schemaChanges: number,
-  records: TRecordPicks,
+  excluded: TRecordExclusions,
 ): Promise<TResult<TDryRunReport>> {
+  const { dryRun } = await import('@/lib/directus/dryRun');
+
   return dryRun(
     parseConnection(source),
     parseConnection(target),
     collections,
     schemaChanges,
-    records,
+    excluded,
   );
 }
 
@@ -82,7 +88,7 @@ export async function beginRun({
   source,
   target,
   collections,
-  records,
+  excluded,
   applySchema,
   schemaCollections,
   force,
@@ -91,7 +97,7 @@ export async function beginRun({
   source: unknown;
   target: unknown;
   collections: string[];
-  records?: TRecordPicks;
+  excluded?: TRecordExclusions;
   applySchema: boolean;
   schemaCollections: string[];
   force: boolean;
@@ -104,11 +110,13 @@ export async function beginRun({
     throw new Error('Nothing selected to run');
   }
 
+  const { startRun } = await loadRunner();
+
   const run = startRun({
     source: from,
     target: to,
     collections,
-    records: records ?? {},
+    excluded: excluded ?? {},
     applySchema,
     schemaCollections,
     force,
@@ -125,9 +133,20 @@ export async function readRun(id: string): Promise<TRun | null> {
   return run ? snapshot(run) : null;
 }
 
+export async function confirmBackup(id: string): Promise<TRun | null> {
+  const run = getRun(id);
+  if (!run) return null;
+
+  const { resumeAfterBackup } = await loadRunner();
+  return snapshot(resumeAfterBackup(run));
+}
+
 export async function stopRun(id: string): Promise<TRun | null> {
   const run = getRun(id);
-  return run ? snapshot(requestStop(run)) : null;
+  if (!run) return null;
+
+  const { requestStop } = await loadRunner();
+  return snapshot(requestStop(run));
 }
 
 export async function rollback(id: string): Promise<TResult<TRun>> {
@@ -135,11 +154,13 @@ export async function rollback(id: string): Promise<TResult<TRun>> {
   if (!run) return { ok: false, error: 'Run not found' };
 
   try {
+    const { rollbackRun } = await loadRunner();
+
     return { ok: true, data: snapshot(await rollbackRun(run)) };
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: describeError(error),
     };
   }
 }
@@ -149,11 +170,18 @@ export async function repairRelax(
   pending: TPendingRelax,
 ): Promise<TResult<number>> {
   return withResult(async () => {
-    await restoreConstraints(
+    const failures = await restoreConstraints(
       clientFor(parseConnection(connection)),
       pending.fields,
     );
-    clearPendingRelax(pending.runId);
+
+    // What was restored is done with; only the stragglers stay on record.
+    settlePendingRelax(
+      pending.runId,
+      failures.map((failure) => failure.field),
+    );
+
+    if (failures.length > 0) throw failures[0].error;
 
     return pending.fields.length;
   });
@@ -165,16 +193,19 @@ export async function generateSqlScript(
   rows: TDataChange[],
   selection: string[],
   mirrorData: boolean,
-  records: TRecordPicks,
+  excluded: TRecordExclusions,
   onLog?: (line: string) => void,
 ): Promise<TResult<string>> {
+  // Loaded on demand: the generators are only needed once a script is asked for.
+  const { buildSqlScript } = await import('@/lib/directus/sqlScript');
+
   return buildSqlScript(
     parseConnection(source),
     parseConnection(target),
     rows,
     new Set(selection),
     mirrorData,
-    records,
+    excluded,
     onLog,
   );
 }
@@ -191,6 +222,8 @@ export async function generateSchemaSqlScript(
   selection: string[],
   onLog?: (line: string) => void,
 ): Promise<TResult<string>> {
+  const { buildSchemaSqlScript } = await import('@/lib/directus/schemaSql');
+
   return buildSchemaSqlScript(
     parseConnection(source),
     parseConnection(target),

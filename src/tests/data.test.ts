@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { fingerprint } from '@/lib/directus/data';
+import { diffRows, fingerprint, realColumnsOf } from '@/lib/directus/data';
 import { isMissingCollection } from '@/lib/directus/errors';
 
 const SOURCE_ROW = {
@@ -126,4 +126,66 @@ test('other failures still blow up the plan', () => {
     }),
     false,
   );
+});
+
+const diff = (overrides: Partial<Parameters<typeof diffRows>[0]> = {}) =>
+  diffRows({
+    primaryKey: 'id',
+    columns: ['id', 'title'],
+    sourceRows: [
+      { id: 1, title: 'same' },
+      { id: 2, title: 'edited' },
+      { id: 3, title: 'new' },
+    ],
+    targetRows: [
+      { id: 1, title: 'same', onlyOnTarget: 'x' },
+      { id: 2, title: 'old' },
+      { id: 4, title: 'extra' },
+    ],
+    excluded: new Set(),
+    mirror: true,
+    ...overrides,
+  });
+
+test('a run writes what is new or different and nothing else', () => {
+  const { newRows, changedRows, extraKeys } = diff();
+
+  assert.deepEqual(
+    newRows.map((row) => row.id),
+    [3],
+  );
+  assert.deepEqual(
+    changedRows.map((row) => row.id),
+    [2],
+  );
+  assert.deepEqual(extraKeys, ['4']);
+});
+
+test('extras are only named in mirror mode', () => {
+  assert.deepEqual(diff({ mirror: false }).extraKeys, []);
+});
+
+test('an unticked record is neither written nor deleted', () => {
+  const { newRows, changedRows, extraKeys } = diff({
+    excluded: new Set(['2', '3', '4']),
+  });
+
+  assert.deepEqual([newRows, changedRows, extraKeys], [[], [], []]);
+});
+
+test('a field Directus masks on read is not a column to migrate', () => {
+  const snapshot = {
+    fields: [
+      { collection: 'members', field: 'id', schema: { is_primary_key: true } },
+      { collection: 'members', field: 'name', schema: {} },
+      {
+        collection: 'members',
+        field: 'secret',
+        schema: {},
+        meta: { special: ['hash'] },
+      },
+    ],
+  } as unknown as Parameters<typeof realColumnsOf>[0];
+
+  assert.deepEqual(realColumnsOf(snapshot, 'members'), ['id', 'name']);
 });

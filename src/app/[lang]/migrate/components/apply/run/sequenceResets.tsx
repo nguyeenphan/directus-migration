@@ -30,7 +30,7 @@ export const SequenceResets = ({ run }: TProps) => {
       <p className="text-xs text-muted-foreground">
         {translate('run-sequence-detail')}
       </p>
-      <pre className="identifier mt-2 max-h-40 overflow-auto bg-muted p-2 text-xs">
+      <pre className="identifier mt-2 max-h-40 overflow-auto rounded-base border-2 bg-secondary-background p-2 text-xs">
         {sequenceResetSql(run.sequenceResets)}
       </pre>
     </section>

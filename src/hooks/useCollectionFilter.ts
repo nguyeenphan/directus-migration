@@ -10,7 +10,7 @@ import {
 
 export const useCollectionFilter = (rows: TDataChange[]) => {
   const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   const needle = query.trim().toLowerCase();
 

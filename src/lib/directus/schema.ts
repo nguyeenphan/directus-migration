@@ -1,9 +1,5 @@
 import type { SchemaSnapshotOutput } from '@directus/sdk';
-import {
-  readFieldsByCollection,
-  schemaDiff,
-  schemaSnapshot,
-} from '@directus/sdk';
+import { readFieldsByCollection, schemaSnapshot } from '@directus/sdk';
 
 import { isSystemName } from '@/constants/directus';
 import { clientFor, type TDirectusClient } from '@/lib/directus/client';
@@ -22,6 +18,10 @@ import {
   unknownMetaKeys,
 } from '@/models/plan';
 import { formatValue } from '@/utils/formatValue';
+import { withRetry } from '@/utils/retry';
+
+import { orMissing } from './errors';
+import { diffSchema } from './schemaTransfer';
 
 const KIND_BY_DEEP_DIFF: Record<string, TChangeKind> = {
   N: 'add',
@@ -63,20 +63,21 @@ export const buildSchemaPlan = async (
 
   onLog?.('Taking schema snapshots');
   const [snapshot, targetSnapshot] = await Promise.all([
-    from.request(schemaSnapshot()),
-    to.request(schemaSnapshot()),
+    withRetry(() => from.request(schemaSnapshot())),
+    withRetry(() => to.request(schemaSnapshot())),
   ]);
 
   onLog?.('Diffing schemas');
-  const { diff } = (await to.request(schemaDiff(snapshot, force))) ?? {
-    diff: {},
-  };
+  const [difference, metaColumns] = await Promise.all([
+    // Only computes a diff, so it is safe to ask again.
+    withRetry(() => to.request(diffSchema(snapshot, force))),
+    readMetaColumns(to),
+  ]);
+  // Identical schemas answer 204 with no body, which the SDK hands back as
+  // the bare response rather than as nothing.
+  const diff = (difference as { diff?: TDiffDocument } | null)?.diff ?? {};
 
-  const compatibility = compatibilityOf(
-    snapshot,
-    targetSnapshot,
-    await readMetaColumns(to),
-  );
+  const compatibility = compatibilityOf(snapshot, targetSnapshot, metaColumns);
   const unknown = unknownMetaKeys(compatibility);
 
   if (unknown.length > 0) {
@@ -87,7 +88,7 @@ export const buildSchemaPlan = async (
 
   return {
     plan: assemble(
-      stripMetaChanges(diff as TDiffDocument),
+      stripMetaChanges(diff),
       snapshot,
       fieldTypes(targetSnapshot),
       compatibility,
@@ -123,20 +124,19 @@ const SYSTEM_TABLE: Record<TMetaScope, string> = {
  * than inferred from its content. A fresh install has nothing to infer from,
  * which is precisely when a migration into it needs the answer.
  *
- * An empty set means "could not tell" — callers must treat that as no drift
- * rather than as a collection with no columns.
+ * An empty set means the target does not have the collection — callers treat
+ * that as no drift rather than as a collection with no columns. Any other
+ * failure throws: guessing the columns would hide real drift.
  */
 export const readColumns = async (
   client: TDirectusClient,
   collection: string,
 ): Promise<Set<string>> => {
-  try {
-    const fields = await client.request(readFieldsByCollection(collection));
+  const fields = await orMissing(
+    withRetry(() => client.request(readFieldsByCollection(collection))),
+  );
 
-    return new Set(fields.map((entry) => String(entry.field)));
-  } catch {
-    return new Set<string>();
-  }
+  return new Set((fields ?? []).map((entry) => String(entry.field)));
 };
 
 export const readMetaColumns = async (

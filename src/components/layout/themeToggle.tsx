@@ -1,27 +1,25 @@
 'use client';
 
 import { Contrast } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { THEME_STORAGE_KEY } from '@/constants/storage';
 import { useTranslate } from '@/hooks/useTranslate';
 
-export const ThemeToggle = () => {
-  const translate = useTranslate();
+// The class on <html> is the state: the inline script in the layout sets it
+// before paint, and nothing here renders differently per theme.
+const toggleTheme = () => {
+  const isDark = document.documentElement.classList.toggle('dark');
 
-  const [isDark, setIsDark] = useState(
-    () =>
-      typeof document !== 'undefined' &&
-      document.documentElement.classList.contains('dark'),
-  );
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
+  try {
     localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
-  }, [isDark]);
+  } catch {
+    // Storage can be unavailable (private mode, quota); the toggle still works.
+  }
+};
 
-  const label = translate('header-toggle-theme');
+export const ThemeToggle = () => {
+  const label = useTranslate()('header-toggle-theme');
 
   return (
     <Button
@@ -29,7 +27,7 @@ export const ThemeToggle = () => {
       size="sm"
       aria-label={label}
       title={label}
-      onClick={() => setIsDark((current) => !current)}
+      onClick={toggleTheme}
     >
       <Contrast />
     </Button>

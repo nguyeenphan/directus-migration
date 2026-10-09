@@ -6,7 +6,11 @@ import {
 } from '@directus/sdk';
 
 import { SYSTEM_COLLECTIONS } from '@/constants/directus';
-import { AUDIT_FIELDS, MAX_DETAIL_RECORDS } from '@/constants/run';
+import {
+  AUDIT_FIELDS,
+  ID_FILTER_SIZE,
+  MAX_DETAIL_RECORDS,
+} from '@/constants/run';
 import { clientFor, type TDirectusClient } from '@/lib/directus/client';
 import type { TResult, TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
@@ -16,6 +20,7 @@ import type {
   TRecordChange,
   TValueDisplay,
 } from '@/models/plan';
+import { chunkArray } from '@/utils/chunk';
 import { formatValue, isSameValue, recordLabel } from '@/utils/formatValue';
 import { withResult } from '@/utils/result';
 import { asRows } from '@/utils/rows';
@@ -43,11 +48,13 @@ export const getRecordChanges = (
     const from = clientFor(source);
     const to = clientFor(target);
 
-    const fields = await from.request(readFieldsByCollection(collection));
+    const [fields, known] = await Promise.all([
+      from.request(readFieldsByCollection(collection)),
+      readColumns(to, collection),
+    ]);
     const primaryKey = primaryKeyOfFields(fields);
     const columns = columnsOfFields(fields);
 
-    const known = await readColumns(to, collection);
     const missing = unknownColumns(columns, known);
     const usable = columns.filter((name) => !missing.includes(name));
     const shared = usable.length > 0 ? usable : columns;
@@ -323,7 +330,22 @@ const decorate = (
   id: string | null,
 ) => (id === null ? null : (labels.get(`${collection}:${id}`) ?? id));
 
+// In slices: every id rides in the query string, and a few hundred uuids
+// make a URL the server refuses.
 const labelsFor = async (
+  client: TDirectusClient,
+  collection: string,
+  ids: string[],
+): Promise<[string, string][]> =>
+  (
+    await Promise.all(
+      chunkArray(ids, ID_FILTER_SIZE).map((slice) =>
+        labelsForSlice(client, collection, slice),
+      ),
+    )
+  ).flat();
+
+const labelsForSlice = async (
   client: TDirectusClient,
   collection: string,
   ids: string[],

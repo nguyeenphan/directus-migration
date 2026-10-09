@@ -1,5 +1,7 @@
 'use client';
 
+import { ArrowRight } from 'lucide-react';
+
 import { DiffMark } from '@/components/common/diffMark';
 import { useSchemaFilter } from '@/hooks/useSchemaFilter';
 import { useTranslate } from '@/hooks/useTranslate';
@@ -76,8 +78,15 @@ export const SchemaTree = ({
                   kind={relation.kind}
                   label={translate(`change-${relation.kind}`)}
                 />
-                <span className="identifier truncate text-muted-foreground">
-                  {relationName(relation)}
+                <span
+                  className="identifier flex min-w-0 items-center gap-1.5 text-muted-foreground"
+                  title={relationName(relation)}
+                >
+                  <span className="truncate">{relation.collection}</span>
+                  <ArrowRight aria-hidden className="size-3.5 shrink-0" />
+                  <span className="truncate">
+                    {relation.relatedCollection ?? relation.field}
+                  </span>
                 </span>
               </li>
             ))}

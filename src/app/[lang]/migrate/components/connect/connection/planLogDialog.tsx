@@ -12,7 +12,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { CHANGE_TEXT } from '@/constants/changeStyles';
 import { useTranslate } from '@/hooks/useTranslate';
+import { cn } from '@/utils/cn';
+import { parsePlanLogLine } from '@/utils/planLogLine';
 
 type TProps = {
   open: boolean;
@@ -48,10 +51,34 @@ export const PlanLogDialog = ({
           </AlertDialogTitle>
         </AlertDialogHeader>
 
-        <div className="max-h-80 overflow-y-auto rounded-base border-2 p-3">
-          <pre className="identifier text-xs wrap-break-word whitespace-pre-wrap">
-            {lines.join('\n')}
-          </pre>
+        <div className="max-h-80 overflow-y-auto rounded-base border-2 bg-secondary-background p-3">
+          <div className="identifier text-xs wrap-break-word whitespace-pre-wrap">
+            {lines.map((line, index) => {
+              const { collection, text, counts } = parsePlanLogLine(line);
+
+              return (
+                <p key={index}>
+                  {collection ? (
+                    <span className="font-heading">{collection}</span>
+                  ) : null}
+                  {text}
+                  {counts.map(({ kind, label, isZero }, position) => (
+                    <span
+                      key={kind}
+                      className={
+                        isZero
+                          ? 'text-muted-foreground/40'
+                          : cn('font-heading', CHANGE_TEXT[kind])
+                      }
+                    >
+                      {position > 0 ? ' ' : ''}
+                      {label}
+                    </span>
+                  ))}
+                </p>
+              );
+            })}
+          </div>
           {error && (
             <pre className="identifier mt-2 text-xs wrap-break-word whitespace-pre-wrap text-destructive">
               {error}

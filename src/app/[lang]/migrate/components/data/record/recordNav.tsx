@@ -1,5 +1,7 @@
 'use client';
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { useTranslate } from '@/hooks/useTranslate';
 
@@ -19,7 +21,7 @@ export const RecordNav = ({ position, onNavigate }: TProps) => {
         disabled={position.index <= 0}
         onClick={() => onNavigate(-1)}
       >
-        ‹ {translate('data-previous')}
+        <ChevronLeft /> {translate('data-previous')}
       </Button>
       <span className="identifier tabular-nums text-muted-foreground">
         {position.index + 1} / {position.total}
@@ -30,7 +32,7 @@ export const RecordNav = ({ position, onNavigate }: TProps) => {
         disabled={position.index >= position.total - 1}
         onClick={() => onNavigate(1)}
       >
-        {translate('data-next')} ›
+        {translate('data-next')} <ChevronRight />
       </Button>
     </footer>
   );

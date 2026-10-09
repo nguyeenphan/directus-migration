@@ -7,26 +7,37 @@ import {
 } from '@directus/sdk';
 
 import { SYSTEM_COLLECTIONS } from '@/constants/directus';
-import { AUDIT_FIELDS, KEY_PAGE_SIZE, WRITE_BATCH_SIZE } from '@/constants/run';
+import {
+  AUDIT_FIELDS,
+  COMPARE_CONCURRENCY,
+  ID_FILTER_SIZE,
+  KEY_PAGE_SIZE,
+  WRITE_BATCH_SIZE,
+} from '@/constants/run';
 import { clientFor, type TDirectusClient } from '@/lib/directus/client';
 import type { TResult, TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
 import {
+  excludedKeys,
   isEmptyChange,
-  keepsRow,
-  pickedKeys,
   type TDataChange,
-  type TRecordPicks,
+  type TRecordExclusions,
 } from '@/models/plan';
 import { chunkArray } from '@/utils/chunk';
+import { mapLimit } from '@/utils/concurrency';
 import { withResult } from '@/utils/result';
 import { asRows } from '@/utils/rows';
 
-import { fingerprint, isSingletonCollection, realColumnsOf } from './data';
+import {
+  diffRows,
+  fingerprint,
+  isSingletonCollection,
+  realColumnsOf,
+} from './data';
 import { orMissing } from './errors';
 import { inParentOrder } from './folders';
 import { readAll, readPages } from './paging';
-import { expandPicks, foreignKeysOf } from './picks';
+import { foreignKeysOf, pullReferenced } from './picks';
 import { readColumns, unknownColumns } from './schema';
 
 const AUDIT = new Set<string>(AUDIT_FIELDS);
@@ -141,7 +152,7 @@ export const buildSqlScript = (
   rows: TDataChange[],
   selection: ReadonlySet<string>,
   mirrorData: boolean,
-  records: TRecordPicks = {},
+  excluded: TRecordExclusions = {},
   onLog?: (line: string) => void,
 ): Promise<TResult<string>> =>
   withResult(async () => {
@@ -155,18 +166,16 @@ export const buildSqlScript = (
       (row) => selection.has(row.collection) && !isEmptyChange(row),
     );
 
-    const sides: TCollectionSides[] = [];
-
-    for (const [index, row] of wanted.entries()) {
+    const sides = await mapLimit(wanted, COMPARE_CONCURRENCY, (row, index) => {
       onLog?.(`Reading ${row.collection} (${index + 1}/${wanted.length})`);
 
-      sides.push(await readSides(from, to, snapshot, row));
-    }
+      return readSides(from, to, snapshot, row);
+    });
 
     onLog?.('Following the foreign keys of the picked records');
 
-    const picks = expandPicks({
-      picks: records,
+    const travelling = pullReferenced({
+      excluded,
       relations: foreignKeysOf(snapshot),
       rows: new Map(sides.map((side) => [side.collection, side.sourceRows])),
       primaryKeys: new Map(
@@ -178,15 +187,17 @@ export const buildSqlScript = (
           new Set(side.targetByKey.keys()),
         ]),
       ),
-    }).picks;
+    }).excluded;
 
-    const diffs = sides.map((side) => diffSides(side, picks, mirrorData));
+    const diffs = sides.map((side) => diffSides(side, travelling, mirrorData));
 
     onLog?.('Collecting the files those records point at');
-    const fileRows = await referencedFiles(from, to, diffs);
+    const [fileRows, fileColumns] = await Promise.all([
+      referencedFiles(from, to, diffs),
+      readColumns(to, SYSTEM_COLLECTIONS.files),
+    ]);
     const folderRows =
       fileRows.length > 0 ? await missingFolders(from, to) : [];
-    const fileColumns = await readColumns(to, SYSTEM_COLLECTIONS.files);
     const skippedFileColumns = unknownColumns(FILE_COLUMNS, fileColumns);
 
     const folderStatements = folderRows.map((row) =>
@@ -247,6 +258,13 @@ export const buildSqlScript = (
     );
 
     const warnings = [
+      ...(snapshot.vendor && snapshot.vendor !== 'postgres'
+        ? [
+            `-- WARNING: this script is written for PostgreSQL, and the ` +
+              `source reports ${snapshot.vendor}.`,
+          ]
+        : []),
+
       ...diffs
         .filter((diff) => diff.skipped.length > 0)
         .map(
@@ -286,8 +304,35 @@ type TCollectionSides = {
   columns: string[];
   isSingleton: boolean;
   skipped: string[];
+
+  csvColumns: string[];
   sourceRows: TRow[];
   targetByKey: Map<string, TRow>;
+};
+
+// Directus reads a csv field back as an array but stores it as one
+// comma-separated string; written as JSON the CMS could no longer parse it.
+const csvColumnsOf = (snapshot: SchemaSnapshotOutput, collection: string) =>
+  snapshot.fields
+    .filter((field) => field.collection === collection)
+    .filter(
+      (field) =>
+        field.type === 'csv' ||
+        (field.meta?.special ?? []).includes('cast-csv'),
+    )
+    .map((field) => String(field.field));
+
+const asStored = (row: TRow, csvColumns: string[]): TRow => {
+  if (csvColumns.length === 0) return row;
+
+  const stored = { ...row };
+
+  for (const column of csvColumns) {
+    const value = stored[column];
+    if (Array.isArray(value)) stored[column] = value.join(',');
+  }
+
+  return stored;
 };
 
 const readSides = async (
@@ -301,9 +346,10 @@ const readSides = async (
   const skipped = unknownColumns(wanted, await readColumns(to, collection));
   const columns = wanted.filter((name) => !skipped.includes(name));
 
-  const sourceRows = await readAll(from, collection, primaryKey, columns);
-  const targetRows =
-    (await orMissing(readAll(to, collection, primaryKey, columns))) ?? [];
+  const [sourceRows, targetRows] = await Promise.all([
+    readAll(from, collection, primaryKey, columns),
+    orMissing(readAll(to, collection, primaryKey, columns)),
+  ]);
 
   return {
     collection,
@@ -311,9 +357,10 @@ const readSides = async (
     columns,
     isSingleton: isSingletonCollection(snapshot, collection),
     skipped,
+    csvColumns: csvColumnsOf(snapshot, collection),
     sourceRows,
     targetByKey: new Map(
-      targetRows.map((item) => [String(item[primaryKey]), item]),
+      (targetRows ?? []).map((item) => [String(item[primaryKey]), item]),
     ),
   };
 };
@@ -342,60 +389,40 @@ const diffSingleton = (sides: TCollectionSides): TCollectionDiff => {
   if (!sourceRow) return empty;
 
   const targetRow = [...sides.targetByKey.values()][0];
-  if (!targetRow) return { ...empty, newRows: [sourceRow] };
+  const stored = asStored(sourceRow, sides.csvColumns);
+
+  if (!targetRow) return { ...empty, newRows: [stored] };
 
   return withoutKey(sourceRow, primaryKey) === withoutKey(targetRow, primaryKey)
     ? empty
-    : { ...empty, changedRows: [sourceRow] };
+    : { ...empty, changedRows: [stored] };
 };
 
 const diffSides = (
   sides: TCollectionSides,
-  records: TRecordPicks,
+  excluded: TRecordExclusions,
   mirrorData: boolean,
 ): TCollectionDiff => {
   if (sides.isSingleton) return diffSingleton(sides);
 
-  const { collection, primaryKey, columns, skipped, targetByKey } = sides;
+  const { collection, primaryKey, columns, skipped, csvColumns } = sides;
 
-  const picked = pickedKeys(records, collection);
-  const sourceRows = sides.sourceRows.filter((item) =>
-    keepsRow(picked, item[primaryKey]),
-  );
-
-  const newRows: TRow[] = [];
-  const changedRows: TRow[] = [];
-
-  for (const sourceRow of sourceRows) {
-    const key = String(sourceRow[primaryKey]);
-    const targetRow = targetByKey.get(key);
-
-    if (!targetRow) {
-      newRows.push(sourceRow);
-    } else if (fingerprint(sourceRow) !== fingerprint(targetRow)) {
-      changedRows.push(sourceRow);
-    }
-  }
-
-  let extraKeys: string[] = [];
-
-  if (mirrorData) {
-    const sourceKeys = new Set(
-      sourceRows.map((item) => String(item[primaryKey])),
-    );
-
-    extraKeys = [...targetByKey.keys()].filter(
-      (key) => !sourceKeys.has(key) && keepsRow(picked, key),
-    );
-  }
+  const { newRows, changedRows, extraKeys } = diffRows({
+    primaryKey,
+    columns,
+    sourceRows: sides.sourceRows,
+    targetRows: [...sides.targetByKey.values()],
+    excluded: excludedKeys(excluded, collection),
+    mirror: mirrorData,
+  });
 
   return {
     collection,
     primaryKey,
     columns,
     isSingleton: false,
-    newRows,
-    changedRows,
+    newRows: newRows.map((row) => asStored(row, csvColumns)),
+    changedRows: changedRows.map((row) => asStored(row, csvColumns)),
     extraKeys,
     skipped,
   };
@@ -468,15 +495,20 @@ const referencedFiles = async (
 
   if (missing.length === 0) return [];
 
-  return asRows(
-    await from.request<TRow[]>(
-      readFiles({
-        filter: { id: { _in: missing } },
-        limit: missing.length,
-        fields: FILE_COLUMNS,
-      }),
+  // In slices: every id rides in the query string.
+  const pages = await Promise.all(
+    chunkArray(missing, ID_FILTER_SIZE).map((ids) =>
+      from.request<TRow[]>(
+        readFiles({
+          filter: { id: { _in: ids } },
+          limit: ids.length,
+          fields: FILE_COLUMNS,
+        }),
+      ),
     ),
   );
+
+  return pages.flatMap((page) => asRows(page));
 };
 
 const readFileKeys = async (client: TDirectusClient) => {

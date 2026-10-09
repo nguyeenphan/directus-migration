@@ -3,6 +3,7 @@ import { readItems } from '@directus/sdk';
 import { KEY_PAGE_SIZE, READ_PAGE_SIZE } from '@/constants/run';
 import type { TDirectusClient } from '@/lib/directus/client';
 import type { TRow } from '@/models/common';
+import { withRetry } from '@/utils/retry';
 import { asRows } from '@/utils/rows';
 
 /**
@@ -18,11 +19,21 @@ export const readPages = async <T>(
   const rows: T[] = [];
 
   for (let offset = 0; ;) {
-    const page = asRows(await fetchPage(offset));
-    if (page.length === 0) break;
+    // Per page, not per read: a busy instance answers 503 for a moment, and
+    // starting a large collection over would only add to the load.
+    const answer = await withRetry(() => fetchPage(offset));
 
-    rows.push(...page);
-    offset += page.length;
+    // A singleton answers with its one object whatever the offset, so it
+    // would never produce the empty page that ends the loop.
+    if (!Array.isArray(answer)) {
+      rows.push(...asRows(answer));
+      break;
+    }
+
+    if (answer.length === 0) break;
+
+    rows.push(...answer);
+    offset += answer.length;
   }
 
   return rows;

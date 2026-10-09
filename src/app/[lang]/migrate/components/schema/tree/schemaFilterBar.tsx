@@ -2,8 +2,8 @@
 
 import { Search } from 'lucide-react';
 
+import { ChangeIcon } from '@/components/common/changeIcon';
 import { Input } from '@/components/ui/input';
-import { CHANGE_GLYPH } from '@/constants/changeStyles';
 import { SCHEMA_FILTERS } from '@/constants/schema';
 import { useTranslate } from '@/hooks/useTranslate';
 import type { TSchemaFilter } from '@/models/plan';
@@ -44,13 +44,17 @@ export const SchemaFilterBar = ({
             type="button"
             onClick={() => onFilterChange(option)}
             className={cn(
-              'identifier rounded-md border-2 px-2 py-0.5 text-xs',
+              'identifier flex items-center rounded-md border-2 px-2 py-0.5 text-xs',
               filter === option
                 ? 'border-foreground bg-main font-heading text-main-foreground'
                 : 'border-border text-muted-foreground hover:bg-muted',
             )}
           >
-            {option === 'all' ? translate('filter-all') : CHANGE_GLYPH[option]}
+            {option === 'all' ? (
+              translate('filter-all')
+            ) : (
+              <ChangeIcon kind={option} />
+            )}
           </button>
         ))}
       </div>

@@ -23,7 +23,7 @@ function pickLocale(header: string | null): TLocale {
   return DEFAULT_LOCALE as TLocale;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const hasLocale = SUPPORTED_LANGUAGES.some(

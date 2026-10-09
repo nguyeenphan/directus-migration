@@ -5,7 +5,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -14,18 +13,12 @@ import { useTranslate } from '@/hooks/useTranslate';
 
 type TProps = {
   open: boolean;
-  host: string;
-  recordCount: number;
-  deleteCount: number;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 };
 
 export const ConfirmWriteDialog = ({
   open,
-  host,
-  recordCount,
-  deleteCount,
   onOpenChange,
   onConfirm,
 }: TProps) => {
@@ -36,14 +29,8 @@ export const ConfirmWriteDialog = ({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {translate('apply-confirm-title', { target: host })}
+            {translate('apply-confirm-prompt')}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            {translate('apply-confirm-body', {
-              records: recordCount,
-              deletes: deleteCount,
-            })}
-          </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>

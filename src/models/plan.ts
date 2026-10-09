@@ -83,12 +83,12 @@ export const isIncompatible = (compatibility: TCompatibility) =>
 export const relationName = (relation: TRelationChange) =>
   `${relation.collection} → ${relation.relatedCollection ?? relation.field}`;
 
-export const destructiveChanges = (plan: TSchemaPlan) => [
-  ...plan.collections.filter((entry) => entry.kind === 'delete'),
-  ...plan.collections.filter((entry) =>
-    entry.fields.some((field) => field.destructive),
-  ),
-];
+export const destructiveChanges = (plan: TSchemaPlan) =>
+  plan.collections.filter(
+    (entry) =>
+      entry.kind === 'delete' ||
+      entry.fields.some((field) => field.destructive),
+  );
 
 export const strandedBy = (
   plan: TSchemaPlan,
@@ -254,15 +254,22 @@ export const groupTotals = (group: TCollectionGroup) =>
       { toCreate: 0, toUpdate: 0, updateUnknown: false, extraInTarget: 0 },
     );
 
-export type TRecordPicks = Record<string, string[]>;
+/**
+ * The records the user unticked, by collection. Everything not named here
+ * travels — including records the review list never showed, because it is
+ * capped and skips hidden fields. An allow-list would silently drop those.
+ */
+export type TRecordExclusions = Record<string, string[]>;
 
-export const pickedKeys = (
-  picks: TRecordPicks | undefined,
+const NOTHING_EXCLUDED: ReadonlySet<string> = new Set();
+
+export const excludedKeys = (
+  exclusions: TRecordExclusions | undefined,
   collection: string,
-): Set<string> | null => {
-  const keys = picks?.[collection];
-  return keys ? new Set(keys) : null;
+): ReadonlySet<string> => {
+  const keys = exclusions?.[collection];
+  return keys && keys.length > 0 ? new Set(keys) : NOTHING_EXCLUDED;
 };
 
-export const keepsRow = (picked: ReadonlySet<string> | null, key: unknown) =>
-  picked === null || picked.has(String(key));
+export const keepsRow = (excluded: ReadonlySet<string>, key: unknown) =>
+  !excluded.has(String(key));

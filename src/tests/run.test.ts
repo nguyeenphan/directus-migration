@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { sequenceResetSql, type TRun, wroteData } from '@/models/run';
+import {
+  isFinished,
+  sequenceResetSql,
+  type TRun,
+  wroteData,
+} from '@/models/run';
 
 const runWith = (units: TRun['units']) => ({ units }) as TRun;
 
@@ -57,4 +62,10 @@ test('a run that touched a collection does', () => {
     wroteData(runWith([unit('backup', 'backup'), unit('partner', 'data')])),
     true,
   );
+});
+
+test('a run waiting for its backup download is not finished', () => {
+  assert.equal(isFinished({ status: 'awaiting-backup' } as TRun), false);
+  assert.equal(isFinished({ status: 'running' } as TRun), false);
+  assert.equal(isFinished({ status: 'stopped' } as TRun), true);
 });

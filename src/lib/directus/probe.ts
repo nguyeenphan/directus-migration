@@ -5,6 +5,7 @@ import { PROBE_TIMEOUT_MS } from '@/constants/run';
 import { clientFor } from '@/lib/directus/client';
 import type { TConnection } from '@/models/connection';
 import type { TProbeFailure, TProbeResult } from '@/models/probe';
+import { describeError } from '@/utils/describeError';
 
 export const probeConnection = async (
   connection: TConnection,
@@ -36,7 +37,7 @@ export const probeConnection = async (
       },
     };
   } catch (error) {
-    return fail(classify(error), describe(error));
+    return fail(classify(error), describeError(error));
   }
 };
 
@@ -104,13 +105,4 @@ const classify = (error: unknown): TProbeFailure => {
   if (status !== null && status >= 500) return 'not-directus';
 
   return 'unreachable';
-};
-
-const describe = (error: unknown) => {
-  if (typeof error === 'object' && error !== null && 'errors' in error) {
-    const [first] = (error as { errors?: { message?: string }[] }).errors ?? [];
-    if (first?.message) return first.message;
-  }
-
-  return error instanceof Error ? error.message : String(error);
 };

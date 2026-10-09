@@ -10,8 +10,11 @@ const translate = createTranslate(en);
 
 test('interpolates {{variable}} placeholders', () => {
   assert.equal(
-    translate('apply-confirm-title', { target: 'production' }),
-    'Write to production',
+    translate('schema-compatibility-version', {
+      source: '11.1.0',
+      target: '11.2.0',
+    }),
+    'Directus 11.1.0 (source) → 11.2.0 (target)',
   );
 });
 

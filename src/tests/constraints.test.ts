@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  mergeRelaxed,
   relaxableFields,
   withoutUuidSpecial,
 } from '@/lib/directus/constraints';
@@ -87,5 +88,27 @@ test('a collection outside the run is untouched', () => {
   assert.deepEqual(
     relaxableFields([NOT_NULL_COLUMN], new Set(['somethingElse'])),
     [],
+  );
+});
+
+const relaxed = (field: string, nullable: boolean) => ({
+  collection: 'products',
+  field,
+  meta: {},
+  schema: { is_nullable: nullable },
+});
+
+test('a definition held from an earlier run outranks a fresh reading of the relaxed field', () => {
+  const merged = mergeRelaxed(
+    [relaxed('title', false)],
+    [relaxed('title', true), relaxed('sku', false)],
+  );
+
+  assert.deepEqual(
+    merged.map((field) => [field.field, field.schema.is_nullable]),
+    [
+      ['title', false],
+      ['sku', false],
+    ],
   );
 });

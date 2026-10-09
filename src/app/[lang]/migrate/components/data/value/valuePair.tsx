@@ -1,5 +1,6 @@
 'use client';
 
+import { ChangeIcon } from '@/components/common/changeIcon';
 import { DIFF_VALUE } from '@/constants/changeStyles';
 import type { TFieldValue } from '@/models/plan';
 import { cn } from '@/utils/cn';
@@ -20,13 +21,14 @@ const DiffLine = ({
 }) => (
   <span
     className={cn(
-      'grid grid-cols-[1rem_1fr] items-baseline gap-2 px-1.5',
+      'grid grid-cols-[1rem_1fr] items-baseline gap-2 px-1.5 rounded-base',
       DIFF_VALUE[side],
     )}
   >
-    <span className="identifier text-muted-foreground">
-      {side === 'before' ? '−' : '+'}
-    </span>
+    <ChangeIcon
+      kind={side === 'before' ? 'delete' : 'add'}
+      className="self-center text-muted-foreground"
+    />
     {children}
   </span>
 );

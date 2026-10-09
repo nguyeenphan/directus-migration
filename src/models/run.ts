@@ -2,7 +2,7 @@ import { RUN_STAGES } from '@/constants/run';
 
 import type { TRow } from './common';
 import type { TConnection } from './connection';
-import type { TRecordPicks } from './plan';
+import type { TRecordExclusions } from './plan';
 
 export type TStage = (typeof RUN_STAGES)[number];
 
@@ -27,14 +27,23 @@ type TLogLine = {
 };
 
 type TRunStatus =
-  'running' | 'succeeded' | 'partial' | 'failed' | 'stopped' | 'rolled-back';
+  | 'running'
+  | 'awaiting-backup'
+  | 'succeeded'
+  | 'partial'
+  | 'failed'
+  | 'stopped'
+  | 'rolling-back'
+  | 'rolled-back';
 
 export const RUN_STATUS_LEVEL: Record<TRunStatus, TLogLevel> = {
   running: 'info',
+  'awaiting-backup': 'warn',
   succeeded: 'success',
   partial: 'warn',
   failed: 'error',
   stopped: 'warn',
+  'rolling-back': 'info',
   'rolled-back': 'warn',
 };
 
@@ -42,7 +51,7 @@ export type TRunRequest = {
   source: TConnection;
   target: TConnection;
   collections: string[];
-  records: TRecordPicks;
+  excluded: TRecordExclusions;
   applySchema: boolean;
   schemaCollections: string[];
   force: boolean;
@@ -74,6 +83,10 @@ export type TRun = {
   log: TLogLine[];
 
   stopRequested: boolean;
+
+  // A failure that belongs to no single unit; such a run never reads as a
+  // success.
+  error: string | null;
 
   sequenceResets: TSequenceReset[];
 
@@ -129,4 +142,9 @@ export const runOutcome = (run: TRun) => ({
   untouched: run.units.filter((unit) => unit.status === 'pending'),
 });
 
-export const isFinished = (run: TRun) => run.status !== 'running';
+export const isAwaitingBackup = (run: TRun) => run.status === 'awaiting-backup';
+
+export const isRollingBack = (run: TRun) => run.status === 'rolling-back';
+
+export const isFinished = (run: TRun) =>
+  run.status !== 'running' && !isAwaitingBackup(run) && !isRollingBack(run);

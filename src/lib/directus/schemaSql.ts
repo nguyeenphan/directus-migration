@@ -1,5 +1,5 @@
 import type { SchemaSnapshotOutput } from '@directus/sdk';
-import { schemaDiff, schemaSnapshot } from '@directus/sdk';
+import { schemaSnapshot } from '@directus/sdk';
 
 import { clientFor } from '@/lib/directus/client';
 import type { TResult, TRow } from '@/models/common';
@@ -14,6 +14,7 @@ import {
   readMetaColumns,
   stripMetaChanges,
 } from './schema';
+import { diffSchema } from './schemaTransfer';
 import { quoteIdent, sqlLiteral } from './sqlScript';
 
 const META_TABLE = {
@@ -200,14 +201,33 @@ const metaLiteral = (column: string, value: unknown) =>
     ? sqlLiteral(value.join(','))
     : sqlLiteral(value);
 
+// These tables are keyed by a serial id alone, so ON CONFLICT never fires on
+// them and a second run of the script would insert every row again.
+const META_IDENTITY: Record<string, string[]> = {
+  [META_TABLE.fields]: ['collection', 'field'],
+  [META_TABLE.relations]: ['many_collection', 'many_field'],
+};
+
 export const insertMetaRow = (table: string, meta: TRow) => {
   const columns = Object.keys(meta).filter((key) => key !== 'id');
   if (columns.length === 0) return null;
 
+  const into = `INSERT INTO ${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')})`;
+  const values = columns.map((key) => metaLiteral(key, meta[key])).join(', ');
+
+  const identity = META_IDENTITY[table];
+
+  if (!identity?.every((key) => columns.includes(key))) {
+    return `${into} VALUES (${values}) ON CONFLICT DO NOTHING;`;
+  }
+
+  const same = identity
+    .map((key) => `${quoteIdent(key)} = ${metaLiteral(key, meta[key])}`)
+    .join(' AND ');
+
   return (
-    `INSERT INTO ${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) ` +
-    `VALUES (${columns.map((key) => metaLiteral(key, meta[key])).join(', ')}) ` +
-    `ON CONFLICT DO NOTHING;`
+    `${into} SELECT ${values} WHERE NOT EXISTS ` +
+    `(SELECT 1 FROM ${quoteIdent(table)} WHERE ${same});`
   );
 };
 
@@ -323,15 +343,20 @@ export const buildSchemaSqlScript = (
     const snapshot: SchemaSnapshotOutput = await from.request(schemaSnapshot());
 
     onLog?.('Diffing schemas');
-    const diff = await to.request(schemaDiff(snapshot, force));
+    const diff = await to.request(diffSchema(snapshot, force));
 
     if (!diff?.hash) return '-- Schema already matches — nothing to apply.';
 
     onLog?.('Checking which meta columns the target has');
+    const [targetSnapshot, metaColumns] = await Promise.all([
+      to.request(schemaSnapshot()),
+      readMetaColumns(to),
+    ]);
+
     const compatibility = compatibilityOf(
       snapshot,
-      await to.request(schemaSnapshot()),
-      await readMetaColumns(to),
+      targetSnapshot,
+      metaColumns,
     );
 
     const unknown = unknownMetaKeys(compatibility);

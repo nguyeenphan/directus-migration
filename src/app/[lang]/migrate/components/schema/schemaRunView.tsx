@@ -25,7 +25,12 @@ export const SchemaRunView = ({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <RunView run={run} onRunChange={onRunChange} onRetry={onRetry} />
+      <RunView
+        key={run.id}
+        run={run}
+        onRunChange={onRunChange}
+        onRetry={onRetry}
+      />
 
       {isFinished(run) && (
         <footer className="flex items-center gap-3 border-t pt-3">

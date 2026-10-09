@@ -12,8 +12,8 @@ import type { TProbeResult } from '@/models/probe';
 import { compareVersions, isDriftPassable } from '@/utils/version';
 
 export const useConnections = () => {
-  const [source, setSource] = useState<TConnection>(emptyConnection());
-  const [target, setTarget] = useState<TConnection>(emptyConnection());
+  const [source, setSource] = useState<TConnection>(emptyConnection);
+  const [target, setTarget] = useState<TConnection>(emptyConnection);
   const [probes, setProbes] = useState<Record<TSide, TProbeResult | null>>({
     source: null,
     target: null,

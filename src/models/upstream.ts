@@ -39,3 +39,18 @@ export const upstreamTarget = (
 
   return target;
 };
+
+const SAFE_METHODS = ['GET', 'HEAD'];
+
+/**
+ * A host listed as read-only never receives a write through the proxy, no
+ * matter what the browser asks for — the guarantee that a production source
+ * stays untouched does not rest on every caller being right.
+ */
+export const refusesWrite = (
+  upstream: URL,
+  method: string,
+  readOnlyHosts: string[],
+) =>
+  readOnlyHosts.includes(upstream.host) &&
+  !SAFE_METHODS.includes(method.toUpperCase());

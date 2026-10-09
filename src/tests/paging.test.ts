@@ -37,3 +37,19 @@ test('an empty first page reads nothing', async () => {
   assert.deepEqual(await readPages(5, fetchPage), []);
   assert.deepEqual(seen, [0]);
 });
+
+test('a singleton, which answers with its one object at every offset, is read once', async () => {
+  let calls = 0;
+
+  const rows = await readPages<{ id: number }>(200, async () => {
+    calls += 1;
+    return { id: 1 };
+  });
+
+  assert.deepEqual(rows, [{ id: 1 }]);
+  assert.equal(calls, 1);
+});
+
+test('a singleton with no row yet reads as empty', async () => {
+  assert.deepEqual(await readPages(200, async () => null), []);
+});

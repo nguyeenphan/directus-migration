@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 
 import { EnvBar } from '@/components/layout/envBar';
+import { useApplyRun } from '@/hooks/useApplyRun';
 import { useConnections } from '@/hooks/useConnections';
 import { useMigrationSelections } from '@/hooks/useMigrationSelections';
 import { usePlan } from '@/hooks/usePlan';
 import { useSchemaRun } from '@/hooks/useSchemaRun';
 import { useTranslate } from '@/hooks/useTranslate';
-import { hostOf } from '@/models/connection';
 import { blockedSteps, type TStep } from '@/models/flow';
-import { destructiveChanges, missingDependencies } from '@/models/plan';
+import { missingDependencies } from '@/models/plan';
 import { isFinished } from '@/models/run';
 
 import { ApplyStep } from './apply/applyStep';
@@ -39,6 +39,7 @@ export const MigrationWizard = () => {
     fingerprint: ends.fingerprint,
     onAdopted: (adopted, openAt) => {
       picked.resetFor(adopted);
+      applyRun.clear();
       setStep(openAt);
     },
   });
@@ -50,14 +51,30 @@ export const MigrationWizard = () => {
     force: ends.force,
   });
 
+  const applyRun = useApplyRun({
+    source: ends.source,
+    target: ends.target,
+    collections: picked.data,
+    excluded: picked.excluded,
+    force: ends.force,
+    mirrorData: picked.mirrorData,
+  });
+
   const plan = comparison.plan;
+
+  const isRunning = (run: typeof applyRun.run) =>
+    run !== null && !isFinished(run);
 
   const blocked = blockedSteps({
     canLeaveConnect: ends.canLeaveConnect,
     hasPlan: plan !== null,
     planFor: comparison.builtFor,
     fingerprint: ends.fingerprint,
-    runInProgress: schemaRun.run !== null && !isFinished(schemaRun.run),
+    runOn: isRunning(schemaRun.run)
+      ? 'schema'
+      : isRunning(applyRun.run)
+        ? 'apply'
+        : null,
     hasDataSelected: picked.data.size > 0,
     dependenciesMissing: Boolean(
       plan && missingDependencies(plan.data, picked.data).length > 0,
@@ -67,6 +84,7 @@ export const MigrationWizard = () => {
   const resetFlow = () => {
     comparison.reset();
     schemaRun.clear();
+    applyRun.clear();
     setStep('connect');
   };
 
@@ -116,7 +134,6 @@ export const MigrationWizard = () => {
             force={ends.force}
             canContinue={ends.canLeaveConnect}
             isPlanning={comparison.isBuilding}
-            planError={comparison.error}
             onChange={ends.change}
             onProbe={ends.probed}
             onForceChange={ends.setForce}
@@ -144,6 +161,7 @@ export const MigrationWizard = () => {
 
         {step === 'schema' && !schemaRun.run && plan && (
           <SchemaStep
+            key={plan.generatedAt}
             source={ends.source}
             target={ends.target}
             force={ends.force}
@@ -163,14 +181,15 @@ export const MigrationWizard = () => {
 
         {step === 'data' && plan && (
           <DataStep
+            key={plan.generatedAt}
             source={ends.source}
             target={ends.target}
             rows={plan.data}
             selection={picked.data}
-            records={picked.records}
+            excluded={picked.excluded}
             mirrorData={picked.mirrorData}
             onSelectionChange={picked.setData}
-            onRecordsChange={picked.setRecords}
+            onExcludedChange={picked.setExcluded}
             onMirrorDataChange={picked.setMirrorData}
             isRecomparing={comparison.isBuilding}
             onRecompare={() => comparison.build('data')}
@@ -185,9 +204,9 @@ export const MigrationWizard = () => {
             target={ends.target}
             plan={plan}
             dataSelection={picked.data}
-            records={picked.records}
+            excluded={picked.excluded}
             mirrorData={picked.mirrorData}
-            force={ends.force}
+            applyRun={applyRun}
             isRecomparing={comparison.isBuilding}
             onRecompare={() => comparison.build('data')}
             onBack={() => goTo('data')}
@@ -205,9 +224,6 @@ export const MigrationWizard = () => {
 
         <ConfirmWriteDialog
           open={schemaRun.needsConfirmation}
-          host={hostOf(ends.target.url)}
-          recordCount={0}
-          deleteCount={plan ? destructiveChanges(plan.schema).length : 0}
           onOpenChange={schemaRun.setNeedsConfirmation}
           onConfirm={schemaRun.start}
         />

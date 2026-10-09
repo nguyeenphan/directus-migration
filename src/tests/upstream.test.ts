@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { resolveUpstream, upstreamTarget } from '@/models/upstream';
+import {
+  refusesWrite,
+  resolveUpstream,
+  upstreamTarget,
+} from '@/models/upstream';
 
 const target = (url: string, path: string[], search = '') =>
   upstreamTarget(new URL(url), path, new URLSearchParams(search)).toString();
@@ -62,5 +66,26 @@ test('the allowlist only applies once it has entries', () => {
   assert.throws(
     () => resolveUpstream('http://169.254.169.254', ['cms.example.com']),
     /Host not allowed/,
+  );
+});
+
+test('a read-only host is never written to, whatever the method', () => {
+  const production = new URL('https://cms.example.com');
+  const readOnly = ['cms.example.com'];
+
+  assert.equal(refusesWrite(production, 'GET', readOnly), false);
+  assert.equal(refusesWrite(production, 'head', readOnly), false);
+
+  for (const method of ['POST', 'PATCH', 'PUT', 'DELETE', 'patch']) {
+    assert.equal(refusesWrite(production, method, readOnly), true);
+  }
+});
+
+test('a host that is not listed keeps taking writes', () => {
+  assert.equal(
+    refusesWrite(new URL('http://localhost:8055'), 'PATCH', [
+      'cms.example.com',
+    ]),
+    false,
   );
 });

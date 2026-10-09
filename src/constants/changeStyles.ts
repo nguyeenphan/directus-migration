@@ -1,12 +1,26 @@
+import {
+  Ban,
+  CircleAlert,
+  Equal,
+  type LucideIcon,
+  Minus,
+  Pencil,
+  Plus,
+} from 'lucide-react';
+
 import type { TChangeKind } from '@/models/plan';
 
-export const CHANGE_GLYPH: Record<TChangeKind, string> = {
-  add: '+',
-  modify: '~',
-  delete: '−',
-  unchanged: '=',
-  conflict: '!',
-  blocked: '⊘',
+/**
+ * One lucide icon per change kind, so marks share the stroke of every other
+ * icon on screen. Log lines keep their plain `+N ~N -N` text.
+ */
+export const CHANGE_ICON: Record<TChangeKind, LucideIcon> = {
+  add: Plus,
+  modify: Pencil,
+  delete: Minus,
+  unchanged: Equal,
+  conflict: CircleAlert,
+  blocked: Ban,
 };
 
 export const CHANGE_TEXT: Record<TChangeKind, string> = {

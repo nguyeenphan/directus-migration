@@ -2,26 +2,26 @@
 
 import { useState } from 'react';
 
-import type { TPlan, TRecordPicks } from '@/models/plan';
+import type { TPlan, TRecordExclusions } from '@/models/plan';
 
 export const useMigrationSelections = () => {
-  const [schema, setSchema] = useState<Set<string>>(new Set());
+  const [schema, setSchema] = useState<Set<string>>(() => new Set());
   const [applySchema, setApplySchema] = useState(true);
-  const [data, setData] = useState<Set<string>>(new Set());
-  const [records, setRecords] = useState<TRecordPicks>({});
+  const [data, setData] = useState<Set<string>>(() => new Set());
+  const [excluded, setExcluded] = useState<TRecordExclusions>({});
   const [mirrorData, setMirrorData] = useState(false);
 
   return {
     schema,
     applySchema,
     data,
-    records,
+    excluded,
     mirrorData,
 
     setSchema,
     setApplySchema,
     setData,
-    setRecords,
+    setExcluded,
     setMirrorData,
 
     resetFor: (plan: TPlan) => {
@@ -35,7 +35,7 @@ export const useMigrationSelections = () => {
             .map((row) => row.collection),
         ),
       );
-      setRecords({});
+      setExcluded({});
       setMirrorData(false);
     },
   };

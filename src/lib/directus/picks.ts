@@ -2,7 +2,7 @@ import type { SchemaSnapshotOutput } from '@directus/sdk';
 
 import { isSystemName } from '@/constants/directus';
 import type { TRow } from '@/models/common';
-import { pickedKeys, type TRecordPicks } from '@/models/plan';
+import type { TRecordExclusions } from '@/models/plan';
 
 export type TPickRelation = {
   collection: string;
@@ -24,33 +24,38 @@ export const foreignKeysOf = (
     }));
 
 type TExpansion = {
-  picks: TRecordPicks;
+  excluded: TRecordExclusions;
 
   pulled: Record<string, number>;
 };
 
-export const expandPicks = ({
-  picks,
+/**
+ * An unticked record that a travelling record points at has to travel too, or
+ * the target rejects the foreign key. Such records are taken back out of the
+ * exclusions, hop after hop, unless the target already holds them.
+ */
+export const pullReferenced = ({
+  excluded,
   relations,
   rows,
   primaryKeys,
   inTarget,
 }: {
-  picks: TRecordPicks;
+  excluded: TRecordExclusions;
   relations: TPickRelation[];
 
   rows: Map<string, TRow[]>;
   primaryKeys: Map<string, string>;
   inTarget?: Map<string, ReadonlySet<string>>;
 }): TExpansion => {
-  const keep = new Map<string, Set<string> | null>();
+  const left = new Map<string, Set<string>>();
   const available = new Map<string, Set<string>>();
 
   const keyOf = (collection: string, row: TRow) =>
     String(row[primaryKeys.get(collection) ?? 'id']);
 
   for (const [collection, list] of rows) {
-    keep.set(collection, pickedKeys(picks, collection));
+    left.set(collection, new Set(excluded[collection] ?? []));
     available.set(
       collection,
       new Set(list.map((row) => keyOf(collection, row))),
@@ -60,7 +65,9 @@ export const expandPicks = ({
   const pulled: Record<string, number> = {};
 
   const wanted = relations.filter(
-    (relation) => rows.has(relation.collection) && keep.get(relation.related),
+    (relation) =>
+      rows.has(relation.collection) &&
+      (left.get(relation.related)?.size ?? 0) > 0,
   );
 
   let changed = true;
@@ -69,19 +76,15 @@ export const expandPicks = ({
     changed = false;
 
     for (const relation of wanted) {
-      const childRows = rows.get(relation.collection) ?? [];
-      const childKeep = keep.get(relation.collection);
+      const childLeft = left.get(relation.collection);
+      const parentLeft = left.get(relation.related);
+      if (!parentLeft || parentLeft.size === 0) continue;
 
-      const parentKeep = keep.get(relation.related);
-      if (!parentKeep) continue;
-
-      const parentRows = available.get(relation.related) ?? new Set<string>();
+      const parentRows = available.get(relation.related);
       const parentInTarget = inTarget?.get(relation.related);
 
-      for (const row of childRows) {
-        if (childKeep && !childKeep.has(keyOf(relation.collection, row))) {
-          continue;
-        }
+      for (const row of rows.get(relation.collection) ?? []) {
+        if (childLeft?.has(keyOf(relation.collection, row))) continue;
 
         const value = row[relation.field];
         if (value === null || value === undefined) continue;
@@ -89,27 +92,28 @@ export const expandPicks = ({
         const key = String(value);
 
         if (
-          parentKeep.has(key) ||
-          !parentRows.has(key) ||
+          !parentLeft.has(key) ||
+          !parentRows?.has(key) ||
           parentInTarget?.has(key)
         ) {
           continue;
         }
 
-        parentKeep.add(key);
+        parentLeft.delete(key);
         pulled[relation.related] = (pulled[relation.related] ?? 0) + 1;
         changed = true;
       }
     }
   }
 
-  const expanded: TRecordPicks = { ...picks };
+  const expanded: TRecordExclusions = { ...excluded };
 
-  for (const [collection, kept] of keep) {
-    if (kept) expanded[collection] = [...kept];
+  for (const [collection, keys] of left) {
+    if (keys.size > 0) expanded[collection] = [...keys];
+    else delete expanded[collection];
   }
 
-  return { picks: expanded, pulled };
+  return { excluded: expanded, pulled };
 };
 
 export const pulledSummary = (pulled: Record<string, number>) =>

@@ -5,12 +5,20 @@ import {
   DIRECTUS_URL_HEADER,
   DIRECTUS_URL_PARAM,
 } from '@/constants/directus';
-import { resolveUpstream, upstreamTarget } from '@/models/upstream';
+import {
+  refusesWrite,
+  resolveUpstream,
+  upstreamTarget,
+} from '@/models/upstream';
 
-const ALLOWED_HOSTS = (process.env.DIRECTUS_ALLOWED_HOSTS ?? '')
-  .split(',')
-  .map((host) => host.trim())
-  .filter(Boolean);
+const hostList = (value: string | undefined) =>
+  (value ?? '')
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean);
+
+const ALLOWED_HOSTS = hostList(process.env.DIRECTUS_ALLOWED_HOSTS);
+const READ_ONLY_HOSTS = hostList(process.env.DIRECTUS_READONLY_HOSTS);
 
 const LOG_BODY_LIMIT = 2000;
 
@@ -57,6 +65,18 @@ async function forward(
     return NextResponse.json(
       { errors: [{ message: detail }] },
       { status: 400 },
+    );
+  }
+
+  if (refusesWrite(upstream, request.method, READ_ONLY_HOSTS)) {
+    const detail = `${upstream.host} is read-only here — ${request.method} refused`;
+    console.error(
+      `[directus] rejected ${request.method} /${path.join('/')} — ${detail}`,
+    );
+
+    return NextResponse.json(
+      { errors: [{ message: detail, extensions: { code: 'READ_ONLY_HOST' } }] },
+      { status: 403 },
     );
   }
 

@@ -2,50 +2,52 @@
 
 import { useState, useTransition } from 'react';
 
-import { beginRun, readRun, runDryRun } from '@/app/[lang]/migrate/operations';
+import { beginRun, readRun } from '@/app/[lang]/migrate/operations';
 import type { TConnection } from '@/models/connection';
-import type { TDryRunReport } from '@/models/dryRun';
-import type { TRecordPicks } from '@/models/plan';
+import type { TRecordExclusions } from '@/models/plan';
 import type { TRun } from '@/models/run';
 
+/**
+ * Held by the wizard, not by the apply step: a run outlives the screen that
+ * started it, and the flow gate has to see it to keep the user on that screen.
+ */
 export const useApplyRun = ({
   source,
   target,
   collections,
-  records,
-  schemaChanges,
+  excluded,
   force,
   mirrorData,
 }: {
   source: TConnection;
   target: TConnection;
-  collections: string[];
-  records: TRecordPicks;
-  schemaChanges: number;
+  collections: ReadonlySet<string>;
+  excluded: TRecordExclusions;
   force: boolean;
   mirrorData: boolean;
 }) => {
-  const [report, setReport] = useState<TDryRunReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [run, setRun] = useState<TRun | null>(null);
-  const [isBusy, startBusy] = useTransition();
+  const [isStarting, startTransition] = useTransition();
 
   const start = () =>
-    startBusy(async () => {
+    startTransition(async () => {
+      setError(null);
+      setNeedsConfirmation(false);
+
       try {
         const { id } = await beginRun({
           source,
           target,
-          collections,
-          records,
+          collections: [...collections],
+          excluded,
           applySchema: false,
           schemaCollections: [],
           force,
           mirrorData,
         });
 
-        setNeedsConfirmation(false);
         setRun(await readRun(id));
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
@@ -53,29 +55,20 @@ export const useApplyRun = ({
     });
 
   return {
-    report,
     error,
     needsConfirmation,
     run,
-    isBusy,
+    isStarting,
 
     setRun,
     setNeedsConfirmation,
     start,
-    dryRun: () =>
-      startBusy(async () => {
-        setError(null);
-        const result = await runDryRun(
-          source,
-          target,
-          collections,
-          schemaChanges,
-          records,
-        );
-
-        if (result.ok) setReport(result.data);
-        else setError(result.error);
-      }),
     apply: () => setNeedsConfirmation(true),
+    clear: () => {
+      setRun(null);
+      setError(null);
+    },
   };
 };
+
+export type TApplyRun = ReturnType<typeof useApplyRun>;

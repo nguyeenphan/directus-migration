@@ -25,6 +25,7 @@ export const useSchemaRun = ({
   const start = () =>
     startTransition(async () => {
       setError(null);
+      setNeedsConfirmation(false);
 
       try {
         const { id } = await beginRun({
@@ -37,7 +38,6 @@ export const useSchemaRun = ({
           mirrorData: false,
         });
 
-        setNeedsConfirmation(false);
         setRun(await readRun(id));
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));

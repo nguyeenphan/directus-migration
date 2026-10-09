@@ -14,7 +14,10 @@ type TProps = {
   records: TRecordChange[];
   activeKey: string | null;
 
-  picked: ReadonlySet<string> | null;
+  // Keys the user unticked; everything else in the collection travels.
+  excluded: ReadonlySet<string>;
+
+  isTruncated: boolean;
   onSelect: (key: string) => void;
   onPick: (keys: string[], isPicked: boolean) => void;
 };
@@ -22,7 +25,8 @@ type TProps = {
 export const RecordList = ({
   records,
   activeKey,
-  picked,
+  excluded,
+  isTruncated,
   onSelect,
   onPick,
 }: TProps) => {
@@ -40,9 +44,9 @@ export const RecordList = ({
   }, [records]);
 
   const visible = showAuditOnly ? [...interesting, ...auditOnly] : interesting;
-  const isPicked = (key: string) => picked === null || picked.has(key);
-  const allPicked = visible.every((record) => isPicked(record.key));
+  const isPicked = (key: string) => !excluded.has(key);
   const pickedCount = visible.filter((record) => isPicked(record.key)).length;
+  const allPicked = pickedCount === visible.length;
 
   return (
     <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
@@ -58,9 +62,9 @@ export const RecordList = ({
           aria-label={translate('data-pick-all-records')}
         />
         <span className="text-xs text-muted-foreground">
-          {picked === null
+          {excluded.size === 0
             ? translate('data-pick-all-records')
-            : translate('data-picked-records', { count: picked.size })}
+            : translate('data-excluded-records', { count: excluded.size })}
         </span>
 
         <span className="identifier ml-auto text-xs tabular-nums text-muted-foreground">
@@ -118,6 +122,12 @@ export const RecordList = ({
           </p>
         )}
       </div>
+
+      {isTruncated && (
+        <p className="border-t px-2 py-1.5 text-xs text-warning">
+          {translate('data-records-truncated', { count: records.length })}
+        </p>
+      )}
 
       {auditOnly.length > 0 && (
         <button

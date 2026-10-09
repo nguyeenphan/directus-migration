@@ -10,15 +10,23 @@ export type TFlowState = {
   hasPlan: boolean;
   planFor: string;
   fingerprint: string;
-  runInProgress: boolean;
+
+  // The step a run is pinned to while it is still going, if any.
+  runOn: TStep | null;
   hasDataSelected: boolean;
   dependenciesMissing: boolean;
 };
 
 export const blockedSteps = (state: TFlowState): TBlocked => {
-  if (state.runInProgress) {
+  if (state.runOn) {
     const reason = 'blocked-run-in-progress';
-    return { connect: reason, data: reason, apply: reason };
+
+    return Object.fromEntries(
+      STEPS.filter((step) => step !== state.runOn).map((step) => [
+        step,
+        reason,
+      ]),
+    );
   }
 
   if (!state.canLeaveConnect) {

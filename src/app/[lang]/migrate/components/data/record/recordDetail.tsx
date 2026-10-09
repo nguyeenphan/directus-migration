@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronRight } from 'lucide-react';
 import { Fragment, useState } from 'react';
 
 import { NOTHING } from '@/constants/changeStyles';
@@ -29,9 +30,7 @@ const FieldGroup = ({
   fields.length === 0 ? null : (
     <details className="group border-t">
       <summary className="flex cursor-pointer list-none items-baseline gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-        <span className="inline-block w-3 transition-transform group-open:rotate-90">
-          ›
-        </span>
+        <ChevronRight className="size-3.5 shrink-0 self-center transition-transform group-open:rotate-90" />
         {label}
       </summary>
 

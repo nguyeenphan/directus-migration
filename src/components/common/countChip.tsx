@@ -1,4 +1,5 @@
-import { CHANGE_GLYPH, CHANGE_TEXT, NOTHING } from '@/constants/changeStyles';
+import { ChangeIcon } from '@/components/common/changeIcon';
+import { CHANGE_TEXT, NOTHING } from '@/constants/changeStyles';
 import type { TChangeKind } from '@/models/plan';
 import { cn } from '@/utils/cn';
 
@@ -22,7 +23,7 @@ export const CountChip = ({ kind, value, label, className }: TProps) => {
         className,
       )}
     >
-      <span aria-hidden>{CHANGE_GLYPH[kind]}</span>
+      <ChangeIcon kind={kind} className="size-3" />
       {value === null ? NOTHING : value}
     </span>
   );

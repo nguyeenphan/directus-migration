@@ -123,7 +123,8 @@ test('metadata inserts drop the auto increment id', () => {
       field: 'title',
     }),
     `INSERT INTO "directus_fields" ("collection", "field") ` +
-      `VALUES ('posts', 'title') ON CONFLICT DO NOTHING;`,
+      `SELECT 'posts', 'title' WHERE NOT EXISTS (SELECT 1 FROM "directus_fields" ` +
+      `WHERE "collection" = 'posts' AND "field" = 'title');`,
   );
 });
 
@@ -185,7 +186,8 @@ test('csv meta columns are written as comma separated text, not json', () => {
       special: ['uuid'],
     }),
     `INSERT INTO "directus_fields" ("collection", "field", "special") ` +
-      `VALUES ('posts', 'id', 'uuid') ON CONFLICT DO NOTHING;`,
+      `SELECT 'posts', 'id', 'uuid' WHERE NOT EXISTS (SELECT 1 FROM "directus_fields" ` +
+      `WHERE "collection" = 'posts' AND "field" = 'id');`,
   );
 });
 
@@ -195,4 +197,12 @@ test('a new collection with no columns in the diff is reported, not skipped in s
   }).join('\n\n');
 
   assert.match(sections, /posts — new, but the diff carries no columns/);
+});
+
+test('a table keyed by its own name still leans on its primary key', () => {
+  assert.equal(
+    insertMetaRow('directus_collections', { collection: 'posts' }),
+    `INSERT INTO "directus_collections" ("collection") ` +
+      `VALUES ('posts') ON CONFLICT DO NOTHING;`,
+  );
 });

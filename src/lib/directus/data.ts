@@ -4,12 +4,20 @@ import { readItems } from '@directus/sdk';
 import { isSystemName, SYSTEM_COLLECTIONS } from '@/constants/directus';
 import {
   AUDIT_FIELDS,
+  COMPARE_CONCURRENCY,
   COMPARE_PAGE_SIZE,
   PROTECTED_COLLECTIONS,
 } from '@/constants/run';
 import { clientFor, type TDirectusClient } from '@/lib/directus/client';
+import type { TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
-import { findParent, isEmptyChange, type TDataChange } from '@/models/plan';
+import {
+  findParent,
+  isEmptyChange,
+  keepsRow,
+  type TDataChange,
+} from '@/models/plan';
+import { mapLimit } from '@/utils/concurrency';
 import { canonicalValue } from '@/utils/formatValue';
 import { asRows } from '@/utils/rows';
 
@@ -29,46 +37,46 @@ export const buildDataPlan = async (
   const collections = migratableCollections(snapshot);
   const dependencies = dependencyMap(snapshot, collections);
 
-  const changes: TDataChange[] = [];
+  return mapLimit(
+    collections,
+    COMPARE_CONCURRENCY,
+    async (collection, index) => {
+      onLog?.(`Comparing ${collection} (${index + 1}/${collections.length})`);
 
-  for (const [index, collection] of collections.entries()) {
-    onLog?.(`Comparing ${collection} (${index + 1}/${collections.length})`);
+      const primaryKey = primaryKeyOf(snapshot, collection);
 
-    const primaryKey = primaryKeyOf(snapshot, collection);
+      const compared = await compareCollection({
+        from,
+        to,
+        collection,
+        primaryKey,
+        columns: realColumnsOf(snapshot, collection),
+        isSingleton: isSingletonCollection(snapshot, collection),
+        allCollections: collections,
+        onLog,
+      });
 
-    const compared = await compareCollection({
-      from,
-      to,
-      collection,
-      primaryKey,
-      columns: realColumnsOf(snapshot, collection),
-      isSingleton: isSingletonCollection(snapshot, collection),
-      allCollections: collections,
-      onLog,
-    });
+      const { sourceCount, targetCount, ...counts } = compared;
 
-    const { sourceCount, targetCount, ...counts } = compared;
+      const change: TDataChange = {
+        ...counts,
+        primaryKey,
+        hasAutoIncrement: hasAutoIncrementKey(snapshot, collection),
+        dependsOn: dependencies.get(collection) ?? [],
+      };
 
-    const change: TDataChange = {
-      ...counts,
-      primaryKey,
-      hasAutoIncrement: hasAutoIncrementKey(snapshot, collection),
-      dependsOn: dependencies.get(collection) ?? [],
-    };
+      if (!isEmptyChange(change)) {
+        onLog?.(
+          `${collection}: read ${sourceCount} from the source and ` +
+            `${targetCount ?? 'nothing'} from the target — ` +
+            `+${change.toCreate} ~${change.toUpdate ?? '?'} ` +
+            `-${change.extraInTarget}`,
+        );
+      }
 
-    if (!isEmptyChange(change)) {
-      onLog?.(
-        `${collection}: read ${sourceCount} from the source and ` +
-          `${targetCount ?? 'nothing'} from the target — ` +
-          `+${change.toCreate} ~${change.toUpdate ?? '?'} ` +
-          `-${change.extraInTarget}`,
-      );
-    }
-
-    changes.push(change);
-  }
-
-  return changes;
+      return change;
+    },
+  );
 };
 
 const dependencyMap = (
@@ -102,7 +110,7 @@ const migratableCollections = (snapshot: SchemaSnapshotOutput) => {
   return snapshot.collections
     .map((entry) => String(entry.collection))
     .filter((name) => !protectedNames.has(name))
-    .filter((name) => !isSystemName(name) || name === SYSTEM_COLLECTIONS.files)
+    .filter((name) => !isSystemName(name))
     .sort();
 };
 
@@ -137,12 +145,24 @@ export const isSingletonCollection = (
       entry.collection === collection && entry.meta?.singleton === true,
   );
 
+const MASKED_SPECIALS = ['hash', 'conceal'];
+
+/**
+ * Directus answers a read of these with asterisks, never the stored value.
+ * Carrying them over would overwrite the target's real secret with the mask.
+ */
+const isMasked = (field: { meta?: { special?: string[] | null } | null }) =>
+  (field.meta?.special ?? []).some((special) =>
+    MASKED_SPECIALS.includes(special),
+  );
+
 export const realColumnsOf = (
   snapshot: SchemaSnapshotOutput,
   collection: string,
 ): string[] => {
   const columns = snapshot.fields
     .filter((field) => field.collection === collection && field.schema)
+    .filter((field) => !isMasked(field))
     .map((field) => String(field.field));
 
   return columns.length > 0 ? columns : [primaryKeyOf(snapshot, collection)];
@@ -266,16 +286,10 @@ const compareCollection = async ({
     });
   }
 
-  const sourceRows = await readFingerprints(
-    from,
-    collection,
-    primaryKey,
-    shared,
-  );
-
-  const targetRows = await orMissing(
-    readFingerprints(to, collection, primaryKey, shared),
-  );
+  const [sourceRows, targetRows] = await Promise.all([
+    readFingerprints(from, collection, primaryKey, shared),
+    orMissing(readFingerprints(to, collection, primaryKey, shared)),
+  ]);
 
   if (!targetRows)
     return await compareKeysOnly({
@@ -355,7 +369,7 @@ const compareSingleton = async ({
   return { ...empty, toUpdate: without(source) === without(target) ? 0 : 1 };
 };
 
-const readSingletonRow = async (
+export const readSingletonRow = async (
   client: TDirectusClient,
   collection: string,
   columns: string[],
@@ -407,4 +421,66 @@ const readFingerprints = async (
   }
 
   return keys;
+};
+
+export type TRowDiff = {
+  newRows: TRow[];
+  changedRows: TRow[];
+  extraKeys: string[];
+};
+
+/**
+ * What a run has to write: source rows the target lacks, source rows whose
+ * content differs, and — in mirror mode — the keys only the target holds.
+ * Both sides are compared through `columns` alone, so a column only one side
+ * was read with cannot invent a change.
+ */
+export const diffRows = ({
+  primaryKey,
+  columns,
+  sourceRows,
+  targetRows,
+  excluded,
+  mirror,
+}: {
+  primaryKey: string;
+  columns: readonly string[];
+  sourceRows: readonly TRow[];
+  targetRows: readonly TRow[];
+  excluded: ReadonlySet<string>;
+  mirror: boolean;
+}): TRowDiff => {
+  const print = (row: TRow) =>
+    fingerprint(Object.fromEntries(columns.map((name) => [name, row[name]])));
+
+  const targetByKey = new Map(
+    targetRows.map((row) => [String(row[primaryKey]), row]),
+  );
+
+  const sourceKeys = new Set<string>();
+  const newRows: TRow[] = [];
+  const changedRows: TRow[] = [];
+
+  for (const row of sourceRows) {
+    const value = row[primaryKey];
+    if (value === null || value === undefined) continue;
+
+    const key = String(value);
+    sourceKeys.add(key);
+
+    if (!keepsRow(excluded, key)) continue;
+
+    const onTarget = targetByKey.get(key);
+
+    if (!onTarget) newRows.push(row);
+    else if (print(row) !== print(onTarget)) changedRows.push(row);
+  }
+
+  const extraKeys = mirror
+    ? [...targetByKey.keys()].filter(
+        (key) => !sourceKeys.has(key) && keepsRow(excluded, key),
+      )
+    : [];
+
+  return { newRows, changedRows, extraKeys };
 };

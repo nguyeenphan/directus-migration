@@ -1,6 +1,7 @@
 'use client';
 
 import { DIFF_VALUE } from '@/constants/changeStyles';
+import { cn } from '@/utils/cn';
 import { revealInvisible, type TDiffLine } from '@/utils/wordDiff';
 
 export type TSide = 'before' | 'after' | 'both';
@@ -23,9 +24,9 @@ export const DiffLine = ({ line, side }: TProps) => (
           key={index}
           className={
             op.type === 'add'
-              ? DIFF_VALUE.after
+              ? cn('rounded-xs', DIFF_VALUE.after)
               : op.type === 'del'
-                ? DIFF_VALUE.before
+                ? cn('rounded-xs', DIFF_VALUE.before)
                 : undefined
           }
         >

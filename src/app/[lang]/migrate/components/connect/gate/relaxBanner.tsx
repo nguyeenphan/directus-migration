@@ -17,9 +17,16 @@ import { hostOf, type TConnection } from '@/models/connection';
 type TProps = {
   target: TConnection;
   canRepair: boolean;
+
+  // Shown on a finished run rather than on a fresh visit.
+  isUnrestored?: boolean;
 };
 
-export const RelaxBanner = ({ target, canRepair }: TProps) => {
+export const RelaxBanner = ({
+  target,
+  canRepair,
+  isUnrestored = false,
+}: TProps) => {
   const translate = useTranslate();
 
   const pending = useSyncExternalStore(
@@ -53,7 +60,11 @@ export const RelaxBanner = ({ target, canRepair }: TProps) => {
         {translate('relax-pending-title')}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {translate('relax-pending-description')}
+        {translate(
+          isUnrestored
+            ? 'relax-unrestored-description'
+            : 'relax-pending-description',
+        )}
       </p>
 
       {mine.map((entry) => (

@@ -1,6 +1,7 @@
 import { readFields, updateField } from '@directus/sdk';
 
 import type { TDirectusClient } from '@/lib/directus/client';
+import { withRetry } from '@/utils/retry';
 
 export type TRelaxedField = {
   collection: string;
@@ -73,12 +74,30 @@ export const planRelax = async (
   return relaxableFields(fields, new Set(collections));
 };
 
+const idOf = (field: TRelaxedField) => `${field.collection}.${field.field}`;
+
+/**
+ * A field still relaxed from an earlier run reads as unconstrained, so a fresh
+ * plan would record the relaxed state as the one to restore. The definitions
+ * held from that earlier run are the real originals and always win.
+ */
+export const mergeRelaxed = (
+  outstanding: readonly TRelaxedField[],
+  fresh: readonly TRelaxedField[],
+): TRelaxedField[] => {
+  const held = new Set(outstanding.map(idOf));
+
+  return [...outstanding, ...fresh.filter((field) => !held.has(idOf(field)))];
+};
+
+// One at a time: each call alters a table and flushes the target's schema
+// cache, and Directus does not take dozens of those at once gracefully.
 export const applyRelax = async (
   client: TDirectusClient,
-  relaxed: TRelaxedField[],
+  relaxed: readonly TRelaxedField[],
 ) => {
-  await Promise.all(
-    relaxed.map((field) =>
+  for (const field of relaxed) {
+    await withRetry(() =>
       client.request(
         updateField(field.collection, field.field, {
           meta: {
@@ -89,22 +108,39 @@ export const applyRelax = async (
           schema: { ...field.schema, is_nullable: true, is_unique: false },
         }),
       ),
-    ),
-  );
+    );
+  }
 };
 
+export type TRestoreFailure = { field: TRelaxedField; error: unknown };
+
+/**
+ * Every field is attempted even when one fails — a column still holding a
+ * NULL refuses its NOT NULL back, and that must not strand the others.
+ */
 export const restoreConstraints = async (
   client: TDirectusClient,
-  relaxed: TRelaxedField[],
-) => {
-  await Promise.all(
-    relaxed.map((field) =>
-      client.request(
-        updateField(field.collection, field.field, {
-          meta: field.meta,
-          schema: field.schema,
-        }),
-      ),
-    ),
-  );
+  relaxed: readonly TRelaxedField[],
+): Promise<TRestoreFailure[]> => {
+  const failures: TRestoreFailure[] = [];
+
+  for (const field of relaxed) {
+    try {
+      await withRetry(() =>
+        client.request(
+          updateField(field.collection, field.field, {
+            meta: field.meta,
+            schema: field.schema,
+          }),
+        ),
+      );
+    } catch (error) {
+      failures.push({ field, error });
+    }
+  }
+
+  return failures;
 };
+
+export const fieldNames = (fields: readonly TRelaxedField[]) =>
+  fields.map(idOf).join(', ');

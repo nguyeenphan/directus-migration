@@ -9,7 +9,7 @@ const ready: TFlowState = {
   hasPlan: true,
   planFor: 'a',
   fingerprint: 'a',
-  runInProgress: false,
+  runOn: null,
   hasDataSelected: true,
   dependenciesMissing: false,
 };
@@ -46,16 +46,26 @@ test('an empty selection closes apply but leaves data open', () => {
 });
 
 test('a run in progress pins the user to the run', () => {
-  const blocked = blockedSteps({ ...ready, runInProgress: true });
+  const blocked = blockedSteps({ ...ready, runOn: 'schema' });
 
   assert.equal(blocked.connect, 'blocked-run-in-progress');
   assert.equal(blocked.apply, 'blocked-run-in-progress');
+  assert.equal(blocked.schema, undefined);
+});
+
+test('a data run closes every step but the one showing it', () => {
+  const blocked = blockedSteps({ ...ready, runOn: 'apply' });
+
+  assert.equal(blocked.connect, 'blocked-run-in-progress');
+  assert.equal(blocked.schema, 'blocked-run-in-progress');
+  assert.equal(blocked.data, 'blocked-run-in-progress');
+  assert.equal(blocked.apply, undefined);
 });
 
 test('a run in progress outranks a stale plan', () => {
   const blocked = blockedSteps({
     ...ready,
-    runInProgress: true,
+    runOn: 'schema',
     fingerprint: 'b',
   });
 

@@ -113,7 +113,9 @@ import type { TChangeKind } from '@/models/plan';
 
 import { SummaryTile } from '../migrate/components/apply/step/summaryTile';
 import { StatusBanner } from '../migrate/components/connect/gate/statusBanner';
+import { ConfirmWriteDemo } from './confirmWriteDemo';
 import { CopyDemo } from './copyDemo';
+import { IconGrid } from './icons';
 
 const BUTTON_VARIANTS = [
   'default',
@@ -242,6 +244,20 @@ const ShowcasePage = async ({
                     0f8fad5b-d9cb-469f-a165-70867728950e -&gt; 0O 1lI
                   </p>
                 </div>
+              </Row>
+            </Section>
+
+            <Section title="Icons">
+              <Row label="Lucide, default 2px stroke, 16px">
+                <IconGrid />
+              </Row>
+              <Row label="Change marks">
+                {CHANGE_KINDS.map((kind) => (
+                  <span key={kind} className="flex items-center gap-1 text-sm">
+                    <DiffMark kind={kind} label={kind} />
+                    {kind}
+                  </span>
+                ))}
               </Row>
             </Section>
 
@@ -640,6 +656,9 @@ const ShowcasePage = async ({
               </Row>
               <Row label="Copy button">
                 <CopyDemo />
+              </Row>
+              <Row label="Confirm write">
+                <ConfirmWriteDemo />
               </Row>
               <Row label="Summary tile">
                 <div className="grid w-full gap-3 sm:grid-cols-3">

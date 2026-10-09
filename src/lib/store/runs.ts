@@ -17,7 +17,8 @@ const store = (globalStore.__directusMigration ??= {
   secrets: new Map<string, TRunSecrets>(),
 });
 
-const MAX_RUNS = 20;
+// Each run keeps a full copy of the target rows it backed up.
+const MAX_RUNS = 3;
 
 export const putRun = (run: TRun) => {
   store.runs.set(run.id, run);
@@ -33,6 +34,8 @@ export const putRun = (run: TRun) => {
 };
 
 export const getRun = (id: string) => store.runs.get(id) ?? null;
+
+export const listRuns = () => [...store.runs.values()];
 
 export const putBackup = (id: string, backup: TBackup) =>
   store.backups.set(id, backup);

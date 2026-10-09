@@ -1,14 +1,15 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useApplyRun } from '@/hooks/useApplyRun';
+import type { TApplyRun } from '@/hooks/useApplyRun';
+import { useDryRun } from '@/hooks/useDryRun';
 import { useTranslate } from '@/hooks/useTranslate';
 import { hostOf, type TConnection } from '@/models/connection';
-import { pickedKeys, type TPlan, type TRecordPicks } from '@/models/plan';
+import type { TPlan, TRecordExclusions } from '@/models/plan';
 
 import { DryRunReport } from './dryRun/dryRunReport';
 import { RunView } from './run/runView';
@@ -21,9 +22,9 @@ type TProps = {
   target: TConnection;
   plan: TPlan;
   dataSelection: Set<string>;
-  records: TRecordPicks;
+  excluded: TRecordExclusions;
   mirrorData: boolean;
-  force: boolean;
+  applyRun: TApplyRun;
   isRecomparing: boolean;
   onRecompare: () => void;
   onBack: () => void;
@@ -34,9 +35,9 @@ export const ApplyStep = ({
   target,
   plan,
   dataSelection,
-  records,
+  excluded,
   mirrorData,
-  force,
+  applyRun,
   isRecomparing,
   onRecompare,
   onBack,
@@ -45,47 +46,60 @@ export const ApplyStep = ({
 
   const [reviewed, setReviewed] = useState(false);
 
-  const collections = useMemo(() => [...dataSelection], [dataSelection]);
+  const collections = [...dataSelection];
+  const selected = plan.data.filter((row) => dataSelection.has(row.collection));
 
-  const counts = useMemo(() => {
-    const selected = plan.data.filter((row) =>
-      dataSelection.has(row.collection),
-    );
+  // The most the run can write: unticked records only ever lower these.
+  const counts = {
+    records: selected.reduce(
+      (total, row) => total + row.toCreate + (row.toUpdate ?? 0),
+      0,
+    ),
+    deletes: mirrorData
+      ? selected.reduce((total, row) => total + row.extraInTarget, 0)
+      : 0,
+  };
 
-    return {
-      records: selected.reduce((total, row) => {
-        const picked = pickedKeys(records, row.collection);
-
-        return (
-          total + (picked ? picked.size : row.toCreate + (row.toUpdate ?? 0))
-        );
-      }, 0),
-      deletes: mirrorData
-        ? selected.reduce((total, row) => total + row.extraInTarget, 0)
-        : 0,
-      sequences: selected.length,
-    };
-  }, [plan, dataSelection, records, mirrorData]);
-
-  const applyRun = useApplyRun({
+  const dryRun = useDryRun({
     source,
     target,
     collections,
-    records,
+    excluded,
     schemaChanges: plan.schema.collections.length,
-    force,
-    mirrorData,
   });
+
+  const isBusy = dryRun.isRunning || applyRun.isStarting;
+  const error = applyRun.error ?? dryRun.error;
+
+  const confirmWrite = (
+    <ConfirmWriteDialog
+      open={applyRun.needsConfirmation}
+      onOpenChange={applyRun.setNeedsConfirmation}
+      onConfirm={applyRun.start}
+    />
+  );
 
   if (applyRun.run) {
     return (
-      <RunView
-        run={applyRun.run}
-        onRunChange={applyRun.setRun}
-        onRetry={applyRun.apply}
-        isRecomparing={isRecomparing}
-        onRecompare={onRecompare}
-      />
+      <>
+        <RunView
+          key={applyRun.run.id}
+          run={applyRun.run}
+          target={target}
+          onRunChange={applyRun.setRun}
+          onRetry={applyRun.apply}
+          isRecomparing={isRecomparing}
+          onRecompare={onRecompare}
+        />
+
+        {applyRun.error && (
+          <pre className="identifier rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
+            {applyRun.error}
+          </pre>
+        )}
+
+        {confirmWrite}
+      </>
     );
   }
 
@@ -144,11 +158,11 @@ export const ApplyStep = ({
         </ol>
       </section>
 
-      {applyRun.report && <DryRunReport report={applyRun.report} />}
+      {dryRun.report && <DryRunReport report={dryRun.report} />}
 
-      {applyRun.error && (
+      {error && (
         <pre className="identifier rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
-          {applyRun.error}
+          {error}
         </pre>
       )}
 
@@ -175,17 +189,17 @@ export const ApplyStep = ({
 
         <Button
           variant="outline"
-          disabled={applyRun.isBusy}
+          disabled={isBusy}
           className="gap-2"
-          onClick={applyRun.dryRun}
+          onClick={dryRun.run}
         >
-          {applyRun.isBusy && <Loader2 className="size-4 animate-spin" />}
+          {dryRun.isRunning && <Loader2 className="size-4 animate-spin" />}
           {translate('apply-dry-run')}
         </Button>
 
         <Button
           size="lg"
-          disabled={!reviewed || applyRun.isBusy}
+          disabled={!reviewed || isBusy}
           onClick={applyRun.apply}
           className="ml-auto"
         >
@@ -193,14 +207,7 @@ export const ApplyStep = ({
         </Button>
       </footer>
 
-      <ConfirmWriteDialog
-        open={applyRun.needsConfirmation}
-        host={hostOf(target.url)}
-        recordCount={counts.records}
-        deleteCount={counts.deletes}
-        onOpenChange={applyRun.setNeedsConfirmation}
-        onConfirm={applyRun.start}
-      />
+      {confirmWrite}
     </div>
   );
 };

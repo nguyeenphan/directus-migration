@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  destructiveChanges,
+  excludedKeys,
   findParent,
   groupCollections,
   isDeleteOnly,
   keepsRow,
   missingDependencies,
-  pickedKeys,
   sequenceResetsIn,
   type TDataChange,
 } from '@/models/plan';
@@ -128,25 +129,52 @@ test('the whole three-level branch collapses into one group', () => {
   );
 });
 
-test('a collection with no picks keeps every row', () => {
-  const picked = pickedKeys({ other: ['1'] }, 'articles');
+test('a collection with nothing unticked keeps every row', () => {
+  const excluded = excludedKeys({ other: ['1'] }, 'articles');
 
-  assert.equal(picked, null);
-  assert.ok(keepsRow(picked, 42));
+  assert.equal(excluded.size, 0);
+  assert.ok(keepsRow(excluded, 42));
 });
 
-test('a collection with picks keeps only the picked keys', () => {
-  const picked = pickedKeys({ articles: ['1', '2'] }, 'articles');
+test('an unticked key is the only one left behind', () => {
+  const excluded = excludedKeys({ articles: ['1', '2'] }, 'articles');
 
-  assert.deepEqual(picked, new Set(['1', '2']));
-  assert.ok(keepsRow(picked, 1));
-  assert.ok(!keepsRow(picked, 3));
+  assert.ok(!keepsRow(excluded, 1));
+  assert.ok(keepsRow(excluded, 3));
 });
 
-test('an empty pick list keeps nothing', () => {
-  const picked = pickedKeys({ articles: [] }, 'articles');
+test('a record the review list never showed still travels', () => {
+  const excluded = excludedKeys({ articles: ['1'] }, 'articles');
 
-  assert.ok(!keepsRow(picked, '1'));
+  assert.ok(keepsRow(excluded, 'beyond-the-cap'));
+});
+
+test('a collection that is both dropped and narrowed counts once', () => {
+  const entry = {
+    collection: 'posts',
+    kind: 'delete' as const,
+    dependents: [],
+    fields: [
+      {
+        field: 'title',
+        kind: 'delete' as const,
+        sourceType: null,
+        targetType: null,
+        attributes: [],
+        destructive: true,
+      },
+    ],
+  };
+
+  assert.equal(
+    destructiveChanges({
+      collections: [entry],
+      relations: [],
+      unchanged: [],
+      compatibility: {} as never,
+    }).length,
+    1,
+  );
 });
 
 const dependent = (

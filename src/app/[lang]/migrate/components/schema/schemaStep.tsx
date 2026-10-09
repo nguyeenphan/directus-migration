@@ -85,7 +85,7 @@ export const SchemaStep = ({
 
         <div className="grid flex-1 place-items-center">
           <div className="flex flex-col items-center gap-3 text-center">
-            <Check className="size-8 text-success" strokeWidth={1.5} />
+            <Check className="size-8 text-success" />
             <p className="text-xl font-heading tracking-tight">
               {translate('schema-in-sync-title')}
             </p>

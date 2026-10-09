@@ -3,17 +3,23 @@
 import { useEffect, useState, useTransition } from 'react';
 
 import {
+  confirmBackup,
   readBackup,
   readRun,
   rollback,
   stopRun,
 } from '@/app/[lang]/migrate/operations';
 import { RUN_POLL_INTERVAL_MS } from '@/constants/run';
-import { isFinished, type TRun } from '@/models/run';
+import {
+  isAwaitingBackup,
+  isFinished,
+  isRollingBack,
+  type TRun,
+} from '@/models/run';
 
 export const useRunActions = (run: TRun, onRunChange: (run: TRun) => void) => {
   const [isActing, startActing] = useTransition();
-  const [rollbackError, setRollbackError] = useState<string | null>(null);
+  const [backupSaved, setBackupSaved] = useState(false);
 
   const finished = isFinished(run);
 
@@ -30,8 +36,10 @@ export const useRunActions = (run: TRun, onRunChange: (run: TRun) => void) => {
 
   return {
     finished,
+    awaitingBackup: isAwaitingBackup(run),
+    rollingBack: isRollingBack(run),
+    backupSaved,
     isActing,
-    rollbackError,
 
     stop: () =>
       startActing(async () => {
@@ -41,12 +49,16 @@ export const useRunActions = (run: TRun, onRunChange: (run: TRun) => void) => {
 
     rollback: () =>
       startActing(async () => {
+        // Shown at once so polling resumes and the rollback log streams in.
+        onRunChange({ ...run, status: 'rolling-back' });
+
         const result = await rollback(run.id);
 
-        if (result.ok) {
-          setRollbackError(null);
-          onRunChange(result.data);
-        } else setRollbackError(result.error);
+        if (result.ok) return onRunChange(result.data);
+
+        // The failure is in the run log; re-read the run to show it.
+        const settled = await readRun(run.id);
+        if (settled) onRunChange(settled);
       }),
 
     download: () =>
@@ -62,6 +74,13 @@ export const useRunActions = (run: TRun, onRunChange: (run: TRun) => void) => {
         link.download = `backup-${run.targetHost}-${run.startedAt}.json`;
         link.click();
         URL.revokeObjectURL(url);
+        setBackupSaved(true);
+      }),
+
+    proceed: () =>
+      startActing(async () => {
+        const next = await confirmBackup(run.id);
+        if (next) onRunChange(next);
       }),
   };
 };

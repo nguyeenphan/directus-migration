@@ -8,8 +8,10 @@ import { Progress } from '@/components/ui/progress';
 import { RUN_STAGES } from '@/constants/run';
 import { useRunActions } from '@/hooks/useRunActions';
 import { useTranslate } from '@/hooks/useTranslate';
+import type { TConnection } from '@/models/connection';
 import { runProgress, stageStatus, type TRun, wroteData } from '@/models/run';
 
+import { RelaxBanner } from '../../connect/gate/relaxBanner';
 import { RollbackDialog } from '../../dialogs/rollbackDialog';
 import { RecompareButton } from '../../recompareButton';
 import { RunLog } from './runLog';
@@ -23,6 +25,9 @@ type TProps = {
 
   onRetry: () => void;
 
+  // Lets a run that could not restore its constraints be repaired in place.
+  target?: TConnection;
+
   isRecomparing?: boolean;
   onRecompare?: () => void;
 };
@@ -31,14 +36,24 @@ export const RunView = ({
   run,
   onRunChange,
   onRetry,
+  target,
   isRecomparing = false,
   onRecompare,
 }: TProps) => {
   const translate = useTranslate();
   const [confirmRollback, setConfirmRollback] = useState(false);
 
-  const { finished, isActing, rollbackError, stop, rollback, download } =
-    useRunActions(run, onRunChange);
+  const {
+    finished,
+    awaitingBackup,
+    backupSaved,
+    rollingBack,
+    isActing,
+    stop,
+    rollback,
+    download,
+    proceed,
+  } = useRunActions(run, onRunChange);
 
   const progress = runProgress(run);
 
@@ -52,7 +67,7 @@ export const RunView = ({
           {progress.settled} / {progress.total}
         </span>
 
-        {!finished && (
+        {!finished && !rollingBack && (
           <Button
             variant="outline"
             size="sm"
@@ -63,6 +78,33 @@ export const RunView = ({
           </Button>
         )}
       </header>
+
+      {awaitingBackup && (
+        <section className="flex flex-wrap items-center gap-3 rounded-base border-2 border-warning bg-secondary-background p-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-heading text-warning">
+              {translate('run-backup-gate-title')}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {translate('run-backup-gate-detail', { target: run.targetHost })}
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={download}
+            disabled={isActing}
+            className="gap-2"
+          >
+            <Download className="size-4" />
+            {translate('run-download-backup')}
+          </Button>
+
+          <Button onClick={proceed} disabled={!backupSaved || isActing}>
+            {translate('run-backup-gate-continue')}
+          </Button>
+        </section>
+      )}
 
       <Progress value={progress.percent} />
 
@@ -77,6 +119,10 @@ export const RunView = ({
           </li>
         ))}
       </ul>
+
+      {finished && target && (
+        <RelaxBanner target={target} canRepair isUnrestored />
+      )}
 
       {finished && <RunOutcome run={run} />}
 
@@ -108,12 +154,6 @@ export const RunView = ({
               isRecomparing={isRecomparing}
               onRecompare={onRecompare}
             />
-          )}
-
-          {rollbackError && (
-            <pre className="identifier max-w-full overflow-x-auto text-xs text-destructive">
-              {rollbackError}
-            </pre>
           )}
 
           {run.hasBackup && wroteData(run) && run.status !== 'rolled-back' && (

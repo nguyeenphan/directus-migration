@@ -1,6 +1,6 @@
 'use client';
 
-import { TriangleAlert } from 'lucide-react';
+import { ArrowRight, TriangleAlert } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { DiffMark } from '@/components/common/diffMark';
@@ -60,8 +60,8 @@ export const SchemaFieldRow = ({ field }: TProps) => {
           <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2">
             {field.attributes.map((attribute) => (
               <Fragment key={attribute.path}>
-                <dt className="text-muted-foreground" aria-hidden>
-                  →
+                <dt className="self-center text-muted-foreground" aria-hidden>
+                  <ArrowRight className="size-3.5" />
                 </dt>
                 <dd
                   className="identifier truncate font-base"

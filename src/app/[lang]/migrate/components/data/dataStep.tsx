@@ -10,6 +10,7 @@ import {
 import { useMemo, useState } from 'react';
 
 import { generateSqlScript } from '@/app/[lang]/migrate/operations';
+import { ChangeIcon } from '@/components/common/changeIcon';
 import { CopyButton } from '@/components/common/copyButton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,21 +26,23 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
-import { CHANGE_GLYPH, CHANGE_TEXT } from '@/constants/changeStyles';
+import { CHANGE_TEXT } from '@/constants/changeStyles';
+import { MAX_DETAIL_RECORDS } from '@/constants/run';
 import { useRecordBrowser } from '@/hooks/useRecordBrowser';
 import { useTranslate } from '@/hooks/useTranslate';
 import type { TTranslationKey } from '@/lib/i18n/translate';
 import type { TConnection } from '@/models/connection';
 import {
+  excludedKeys,
   isDeleteOnly,
   isEmptyChange,
   missingDependencies,
-  pickedKeys,
   sequenceResetsIn,
   type TDataChange,
-  type TRecordPicks,
+  type TRecordExclusions,
 } from '@/models/plan';
 import { sequenceResetSql } from '@/models/run';
+import { cn } from '@/utils/cn';
 
 import { RecompareButton } from '../recompareButton';
 import { SqlScriptButton } from '../sqlScriptButton';
@@ -52,10 +55,10 @@ type TProps = {
   target: TConnection;
   rows: TDataChange[];
   selection: Set<string>;
-  records: TRecordPicks;
+  excluded: TRecordExclusions;
   mirrorData: boolean;
   onSelectionChange: (selection: Set<string>) => void;
-  onRecordsChange: (records: TRecordPicks) => void;
+  onExcludedChange: (excluded: TRecordExclusions) => void;
   onMirrorDataChange: (mirror: boolean) => void;
   isRecomparing: boolean;
   onRecompare: () => void;
@@ -68,10 +71,10 @@ export const DataStep = ({
   target,
   rows,
   selection,
-  records,
+  excluded,
   mirrorData,
   onSelectionChange,
-  onRecordsChange,
+  onExcludedChange,
   onMirrorDataChange,
   isRecomparing,
   onRecompare,
@@ -120,16 +123,17 @@ export const DataStep = ({
     const collection = browser.active;
     if (!collection) return;
 
-    const all = browser.records.map((record) => record.key);
-    const current = records[collection] ?? all;
-    const picked = isPicked
-      ? all.filter((key) => current.includes(key) || keys.includes(key))
-      : current.filter((key) => !keys.includes(key));
+    const unticked = new Set(excluded[collection]);
 
-    const next = { ...records, [collection]: picked };
-    if (picked.length === all.length) delete next[collection];
+    for (const key of keys) {
+      if (isPicked) unticked.delete(key);
+      else unticked.add(key);
+    }
 
-    onRecordsChange(next);
+    const next = { ...excluded, [collection]: [...unticked] };
+    if (unticked.size === 0) delete next[collection];
+
+    onExcludedChange(next);
 
     if (isPicked && !selection.has(collection)) toggle([collection], true);
   };
@@ -152,7 +156,7 @@ export const DataStep = ({
       <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
         <div className="grid flex-1 place-items-center">
           <div className="flex flex-col items-center gap-3 text-center">
-            <Check className="size-8 text-success" strokeWidth={1.5} />
+            <Check className="size-8 text-success" />
             <p className="text-xl font-heading tracking-tight">
               {translate('data-in-sync-title')}
             </p>
@@ -225,7 +229,8 @@ export const DataStep = ({
             <RecordList
               records={browser.records}
               activeKey={browser.activeKey}
-              picked={pickedKeys(records, browser.active ?? '')}
+              excluded={excludedKeys(excluded, browser.active ?? '')}
+              isTruncated={browser.records.length >= MAX_DETAIL_RECORDS}
               onSelect={browser.select}
               onPick={pickRecords}
             />
@@ -308,8 +313,11 @@ export const DataStep = ({
       <footer className="flex flex-wrap items-center gap-4 border-t pt-3 text-sm">
         <span className="identifier flex gap-3 tabular-nums">
           {(['add', 'modify', 'delete'] as const).map((kind) => (
-            <span key={kind} className={CHANGE_TEXT[kind]}>
-              {CHANGE_GLYPH[kind]}
+            <span
+              key={kind}
+              className={cn('flex items-center gap-0.5', CHANGE_TEXT[kind])}
+            >
+              <ChangeIcon kind={kind} className="size-3" />
               {totals[kind]}
             </span>
           ))}
@@ -340,7 +348,7 @@ export const DataStep = ({
                 rows,
                 [...selection],
                 mirrorData,
-                records,
+                excluded,
                 onLog,
               )
             }
@@ -370,14 +378,15 @@ export const DataStep = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="relative min-h-0 flex-1">
-            <div className="absolute top-2 right-2">
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="absolute top-3 right-3 z-10">
               <CopyButton
+                className="rounded-base border-2 border-border bg-secondary-background p-1.5 text-foreground shadow-shadow [&_svg]:size-4"
                 label={translate('data-sequence-title')}
                 text={() => sequenceSql}
               />
             </div>
-            <pre className="identifier h-full overflow-auto bg-muted p-3 pr-12 text-xs whitespace-pre">
+            <pre className="identifier min-h-0 flex-1 overflow-auto rounded-base border-2 bg-secondary-background p-3 pr-12 text-xs whitespace-pre">
               {sequenceSql}
             </pre>
           </div>

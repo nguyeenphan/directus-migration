@@ -1,18 +1,19 @@
 import type { SchemaSnapshotOutput } from '@directus/sdk';
 import { schemaSnapshot } from '@directus/sdk';
 
-import { MAX_VIOLATIONS_SHOWN } from '@/constants/run';
+import { COMPARE_CONCURRENCY, MAX_VIOLATIONS_SHOWN } from '@/constants/run';
 import { clientFor, type TDirectusClient } from '@/lib/directus/client';
 import type { TResult, TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
 import type { TDryRunLine, TDryRunReport } from '@/models/dryRun';
-import { keepsRow, pickedKeys, type TRecordPicks } from '@/models/plan';
+import { excludedKeys, keepsRow, type TRecordExclusions } from '@/models/plan';
+import { mapLimit } from '@/utils/concurrency';
 import { withResult } from '@/utils/result';
 
 import { primaryKeyOf, realColumnsOf } from './data';
 import { orMissing } from './errors';
 import { readAll, readKeys } from './paging';
-import { expandPicks, foreignKeysOf, type TPickRelation } from './picks';
+import { foreignKeysOf, pullReferenced, type TPickRelation } from './picks';
 
 const readTargetKeys = async (
   client: TDirectusClient,
@@ -27,7 +28,7 @@ export const dryRun = (
   target: TConnection,
   collections: string[],
   schemaChanges: number,
-  records: TRecordPicks = {},
+  excluded: TRecordExclusions = {},
 ): Promise<TResult<TDryRunReport>> =>
   withResult(async () => {
     const from = clientFor(source);
@@ -46,7 +47,7 @@ export const dryRun = (
     const sourceRows = new Map<string, TRow[]>();
     const targetKeys = new Map<string, ReadonlySet<string>>();
 
-    for (const collection of collections) {
+    await mapLimit(collections, COMPARE_CONCURRENCY, async (collection) => {
       const primaryKey = primaryKeys.get(collection) ?? 'id';
 
       const [rows, keys] = await Promise.all([
@@ -61,22 +62,22 @@ export const dryRun = (
 
       sourceRows.set(collection, rows);
       targetKeys.set(collection, keys);
-    }
+    });
 
-    const picks = expandPicks({
-      picks: records,
+    const travelling = pullReferenced({
+      excluded,
       relations,
       rows: sourceRows,
       primaryKeys,
       inTarget: targetKeys,
-    }).picks;
+    }).excluded;
 
     const availableKeys = await keysAfterRun({
       to,
       snapshot,
       relations,
       collections,
-      picks,
+      excluded: travelling,
       primaryKeys,
       sourceRows,
       targetKeys,
@@ -88,7 +89,7 @@ export const dryRun = (
         primaryKey: primaryKeys.get(collection) ?? 'id',
         rows: (sourceRows.get(collection) ?? []).filter((row) =>
           keepsRow(
-            pickedKeys(picks, collection),
+            excludedKeys(travelling, collection),
             row[primaryKeys.get(collection) ?? 'id'],
           ),
         ),
@@ -120,7 +121,7 @@ const keysAfterRun = async ({
   snapshot,
   relations,
   collections,
-  picks,
+  excluded,
   primaryKeys,
   sourceRows,
   targetKeys,
@@ -129,7 +130,7 @@ const keysAfterRun = async ({
   snapshot: SchemaSnapshotOutput;
   relations: TPickRelation[];
   collections: string[];
-  picks: TRecordPicks;
+  excluded: TRecordExclusions;
   primaryKeys: Map<string, string>;
   sourceRows: Map<string, TRow[]>;
   targetKeys: Map<string, ReadonlySet<string>>;
@@ -138,14 +139,14 @@ const keysAfterRun = async ({
 
   for (const collection of collections) {
     const primaryKey = primaryKeys.get(collection) ?? 'id';
-    const picked = pickedKeys(picks, collection);
+    const unticked = excludedKeys(excluded, collection);
 
     available.set(
       collection,
       new Set([
         ...(targetKeys.get(collection) ?? []),
         ...(sourceRows.get(collection) ?? [])
-          .filter((row) => keepsRow(picked, row[primaryKey]))
+          .filter((row) => keepsRow(unticked, row[primaryKey]))
           .map((row) => String(row[primaryKey])),
       ]),
     );

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  expandPicks,
   foreignKeysOf,
+  pullReferenced,
   type TPickRelation,
 } from '@/lib/directus/picks';
 import type { TRow } from '@/models/common';
@@ -37,48 +37,59 @@ const primaryKeys = new Map([
   ['teams', 'id'],
 ]);
 
-test('a picked record drags in what it points at, hop after hop', () => {
-  const { picks, pulled } = expandPicks({
-    picks: { articles: ['a1'], authors: [], teams: [] },
+test('an unticked record a travelling one points at travels too, hop after hop', () => {
+  const { excluded, pulled } = pullReferenced({
+    excluded: { articles: ['a2'], authors: ['u1', 'u2'], teams: ['t1', 't2'] },
     relations,
     rows,
     primaryKeys,
   });
 
-  assert.deepEqual(picks.articles, ['a1']);
-  assert.deepEqual(picks.authors, ['u1']);
-  assert.deepEqual(picks.teams, ['t1']);
+  assert.deepEqual(excluded.articles, ['a2']);
+  assert.deepEqual(excluded.authors, ['u2']);
+  assert.deepEqual(excluded.teams, ['t2']);
   assert.deepEqual(pulled, { authors: 1, teams: 1 });
 });
 
 test('rows the target already holds are left where they are', () => {
-  const { picks, pulled } = expandPicks({
-    picks: { articles: ['a1'], authors: [] },
+  const { excluded, pulled } = pullReferenced({
+    excluded: { articles: ['a2'], authors: ['u1', 'u2'] },
     relations,
     rows,
     primaryKeys,
     inTarget: new Map([['authors', new Set(['u1'])]]),
   });
 
-  assert.deepEqual(picks.authors, []);
+  assert.deepEqual(excluded.authors, ['u1', 'u2']);
   assert.deepEqual(pulled, {});
 });
 
 test('a collection travelling whole is left alone', () => {
-  const { picks } = expandPicks({
-    picks: { articles: ['a1'] },
+  const { excluded } = pullReferenced({
+    excluded: { articles: ['a2'] },
     relations,
     rows,
     primaryKeys,
   });
 
-  assert.equal(picks.authors, undefined);
-  assert.equal(picks.teams, undefined);
+  assert.equal(excluded.authors, undefined);
+  assert.equal(excluded.teams, undefined);
 });
 
-test('a reference to a row missing from the source is not invented', () => {
-  const { picks } = expandPicks({
-    picks: { articles: ['a1'], authors: [] },
+test('an exclusion emptied by the pull is dropped altogether', () => {
+  const { excluded } = pullReferenced({
+    excluded: { authors: ['u1'] },
+    relations,
+    rows,
+    primaryKeys,
+  });
+
+  assert.equal(excluded.authors, undefined);
+});
+
+test('an unticked key the source does not hold is left unticked', () => {
+  const { excluded, pulled } = pullReferenced({
+    excluded: { authors: ['gone'] },
     relations,
     rows: new Map([
       ['articles', [{ id: 'a1', author: 'gone' }]],
@@ -87,7 +98,8 @@ test('a reference to a row missing from the source is not invented', () => {
     primaryKeys,
   });
 
-  assert.deepEqual(picks.authors, []);
+  assert.deepEqual(excluded.authors, ['gone']);
+  assert.deepEqual(pulled, {});
 });
 
 test('keys into system collections are not part of the closure', () => {

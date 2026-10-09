@@ -75,19 +75,20 @@ export const SqlScriptButton = ({ generate, disabled }: TProps) => {
           </DialogHeader>
 
           {script.phase === 'ready' ? (
-            <div className="relative min-h-0 flex-1">
-              <div className="absolute top-2 right-2">
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <div className="absolute top-3 right-3 z-10">
                 <CopyButton
+                  className="rounded-base border-2 border-border bg-secondary-background p-1.5 text-foreground shadow-shadow [&_svg]:size-4"
                   label={translate('data-sql-script-title')}
                   text={() => script.sql}
                 />
               </div>
-              <pre className="identifier h-full overflow-auto bg-muted p-3 pr-12 text-xs whitespace-pre">
+              <pre className="identifier min-h-0 flex-1 overflow-auto rounded-base border-2 bg-secondary-background p-3 pr-12 text-xs whitespace-pre">
                 {script.sql}
               </pre>
             </div>
           ) : (
-            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto rounded-base border-2 p-3">
+            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto rounded-base border-2 bg-secondary-background p-3">
               <pre className="identifier text-xs wrap-break-word whitespace-pre-wrap">
                 {script.log.join('\n')}
               </pre>

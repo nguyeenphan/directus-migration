@@ -8,13 +8,22 @@ export const COMPARE_PAGE_SIZE = 500;
 
 export const KEY_PAGE_SIZE = 5000;
 
+// Collections compared at once while planning. Kept low: each one is a full
+// read of both instances, and the source is usually production.
+export const COMPARE_CONCURRENCY = 2;
+
 export const MAX_DETAIL_RECORDS = 500;
+
+// Ids per `_in` filter — they travel in the query string of a GET.
+export const ID_FILTER_SIZE = 100;
 
 export const MAX_VIOLATIONS_SHOWN = 10;
 
 export const RUN_POLL_INTERVAL_MS = 1000;
 
-export const RETRY_ATTEMPTS = 3;
+// 0.5s, 1s, 2s, 4s between tries — long enough for a Directus that reports
+// "under pressure" to catch its breath.
+export const RETRY_ATTEMPTS = 5;
 
 export const RETRY_BASE_DELAY_MS = 500;
 
