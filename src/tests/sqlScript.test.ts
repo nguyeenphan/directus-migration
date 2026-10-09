@@ -85,3 +85,8 @@ test('a singleton is updated in place, with no key in the where clause', () => {
     `UPDATE "settings" SET "title" = 'Hello', "date_updated" = NULL;`,
   );
 });
+
+test('a table with nothing but its primary key yields no update', () => {
+  assert.equal(updateStatement('tags', 'id', ['id'], { id: 1 }), null);
+  assert.equal(singletonUpdate('settings', 'id', ['id'], { id: 1 }), null);
+});

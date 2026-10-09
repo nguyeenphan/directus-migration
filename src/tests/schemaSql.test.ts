@@ -84,11 +84,35 @@ test('relations become foreign keys, falling back to a derived constraint name',
         on_delete: 'SET NULL',
       },
     }),
-    'ALTER TABLE "posts" ADD CONSTRAINT "posts_author_foreign" ' +
-      'FOREIGN KEY ("author") REFERENCES "users" ("id") ON DELETE SET NULL;',
+    'DO $$ BEGIN\n' +
+      '  ALTER TABLE "posts" ADD CONSTRAINT "posts_author_foreign" ' +
+      'FOREIGN KEY ("author") REFERENCES "users" ("id") ON DELETE SET NULL;\n' +
+      'EXCEPTION WHEN duplicate_object THEN NULL;\nEND $$;',
   );
 
   assert.equal(addForeignKey({ collection: 'posts', field: 'author' }), null);
+});
+
+test('keyword and call defaults stay raw, text defaults stay quoted', () => {
+  const defaultOf = (value: unknown) =>
+    addColumn({
+      collection: 'posts',
+      field: 'x',
+      schema: { data_type: 'text', default_value: value },
+    })?.match(/DEFAULT (.+);$/)?.[1];
+
+  assert.equal(defaultOf('CURRENT_TIMESTAMP'), 'CURRENT_TIMESTAMP');
+  assert.equal(defaultOf('current_date'), 'current_date');
+  assert.equal(
+    defaultOf("nextval('posts_id_seq'::regclass)"),
+    "nextval('posts_id_seq'::regclass)",
+  );
+  assert.equal(defaultOf('gen_random_uuid()'), 'gen_random_uuid()');
+  assert.equal(defaultOf('Hello (world)'), "'Hello (world)'");
+  assert.equal(
+    defaultOf('CURRENT_TIMESTAMP is a phrase'),
+    "'CURRENT_TIMESTAMP is a phrase'",
+  );
 });
 
 test('metadata inserts drop the auto increment id', () => {

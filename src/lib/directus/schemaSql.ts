@@ -78,7 +78,15 @@ const isDrop = (entry: TDiffEntry) =>
     (item) => (item.path ?? []).length === 0 && item.kind === 'D',
   );
 
-const EXPRESSION = /\(\s*\)\s*$/;
+const KEYWORD_DEFAULT =
+  /^(CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|CURRENT_USER|SESSION_USER|LOCALTIME|LOCALTIMESTAMP)$/i;
+
+const FUNCTION_DEFAULT = /^\w+(\.\w+)?\([^()]*\)$/;
+
+const isSqlExpression = (value: string) => {
+  const text = value.trim();
+  return KEYWORD_DEFAULT.test(text) || FUNCTION_DEFAULT.test(text);
+};
 
 export const columnType = (schema: TColumnSchema) => {
   const type = schema.data_type ?? 'text';
@@ -119,7 +127,7 @@ const columnDefinition = (field: TObject) => {
   ) {
     parts.push(
       `DEFAULT ${
-        typeof fallback === 'string' && EXPRESSION.test(fallback)
+        typeof fallback === 'string' && isSqlExpression(fallback)
           ? fallback
           : sqlLiteral(fallback)
       }`,
@@ -179,7 +187,10 @@ export const addForeignKey = (relation: TObject) => {
     ...(schema.on_update ? [`ON UPDATE ${schema.on_update}`] : []),
   ];
 
-  return `${clauses.join(' ')};`;
+  return (
+    `DO $$ BEGIN\n  ${clauses.join(' ')};\n` +
+    `EXCEPTION WHEN duplicate_object THEN NULL;\nEND $$;`
+  );
 };
 
 const CSV_COLUMNS = new Set(['special', 'one_allowed_collections']);

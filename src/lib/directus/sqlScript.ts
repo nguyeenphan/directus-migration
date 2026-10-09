@@ -53,18 +53,22 @@ export const insertStub = (
     .map((key) => `(${sqlLiteral(key)})`)
     .join(', ')} ON CONFLICT (${quoteIdent(primaryKey)}) DO NOTHING;`;
 
+const assignmentsOf = (primaryKey: string, columns: string[], row: TRow) =>
+  columns
+    .filter((col) => col !== primaryKey)
+    .map(
+      (col) =>
+        `${quoteIdent(col)} = ${AUDIT.has(col) ? 'NULL' : sqlLiteral(row[col])}`,
+    );
+
 export const updateStatement = (
   table: string,
   primaryKey: string,
   columns: string[],
   row: TRow,
 ) => {
-  const assignments = columns
-    .filter((col) => col !== primaryKey)
-    .map(
-      (col) =>
-        `${quoteIdent(col)} = ${AUDIT.has(col) ? 'NULL' : sqlLiteral(row[col])}`,
-    );
+  const assignments = assignmentsOf(primaryKey, columns, row);
+  if (assignments.length === 0) return null;
 
   return (
     `UPDATE ${quoteIdent(table)} SET ${assignments.join(', ')} ` +
@@ -78,12 +82,8 @@ export const singletonUpdate = (
   columns: string[],
   row: TRow,
 ) => {
-  const assignments = columns
-    .filter((col) => col !== primaryKey)
-    .map(
-      (col) =>
-        `${quoteIdent(col)} = ${AUDIT.has(col) ? 'NULL' : sqlLiteral(row[col])}`,
-    );
+  const assignments = assignmentsOf(primaryKey, columns, row);
+  if (assignments.length === 0) return null;
 
   return `UPDATE ${quoteIdent(table)} SET ${assignments.join(', ')};`;
 };
@@ -213,14 +213,14 @@ export const buildSqlScript = (
           ).map((batch) => insertStub(diff.collection, diff.primaryKey, batch)),
     );
 
-    const stage2 = diffs.flatMap((diff) =>
-      diff.isSingleton
-        ? diff.newRows
-            .map((row) =>
-              insertRow(diff.collection, diff.primaryKey, diff.columns, row),
-            )
-            .concat(
-              diff.changedRows.map((row) =>
+    const stage2 = diffs
+      .flatMap((diff) =>
+        diff.isSingleton
+          ? [
+              ...diff.newRows.map((row) =>
+                insertRow(diff.collection, diff.primaryKey, diff.columns, row),
+              ),
+              ...diff.changedRows.map((row) =>
                 singletonUpdate(
                   diff.collection,
                   diff.primaryKey,
@@ -228,16 +228,17 @@ export const buildSqlScript = (
                   row,
                 ),
               ),
-            )
-        : [...diff.newRows, ...diff.changedRows].map((row) =>
-            updateStatement(
-              diff.collection,
-              diff.primaryKey,
-              diff.columns,
-              row,
+            ]
+          : [...diff.newRows, ...diff.changedRows].map((row) =>
+              updateStatement(
+                diff.collection,
+                diff.primaryKey,
+                diff.columns,
+                row,
+              ),
             ),
-          ),
-    );
+      )
+      .filter((line): line is string => line !== null);
 
     const stage3 = diffs.flatMap((diff) =>
       diff.extraKeys.length === 0
