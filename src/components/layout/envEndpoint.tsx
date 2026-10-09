@@ -16,8 +16,8 @@ export const EnvEndpoint = ({ connection }: TProps) => {
     <span className="flex flex-col leading-tight">
       <span
         className={cn(
-          'identifier text-sm font-bold',
-          !host && 'font-normal text-muted-foreground/60',
+          'identifier text-sm font-heading',
+          !host && 'font-base text-muted-foreground/60',
         )}
       >
         {host || translate('env-not-set')}

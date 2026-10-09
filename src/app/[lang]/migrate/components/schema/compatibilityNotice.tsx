@@ -25,7 +25,7 @@ export const CompatibilityNotice = ({ compatibility }: TProps) => {
 
   return (
     <div
-      className={`flex items-start gap-2 border p-3 text-sm ${
+      className={`flex items-start gap-2 rounded-base border-2 bg-secondary-background p-3 text-sm ${
         tone === 'destructive'
           ? 'border-destructive text-destructive'
           : 'border-warning text-warning'
@@ -34,7 +34,7 @@ export const CompatibilityNotice = ({ compatibility }: TProps) => {
       <TriangleAlert className="mt-0.5 size-4 shrink-0" />
 
       <div className="flex flex-col gap-1">
-        <p className="font-semibold">
+        <p className="font-heading">
           {translate('schema-compatibility-title')}
         </p>
 

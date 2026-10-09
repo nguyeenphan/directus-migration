@@ -18,7 +18,7 @@ export const RecordHeader = ({ record }: TProps) => {
           kind={record.kind}
           label={translate(`change-${record.kind}`)}
         />
-        <h2 className="truncate text-base font-semibold">{record.label}</h2>
+        <h2 className="truncate text-base font-heading">{record.label}</h2>
       </div>
       <p className="identifier text-xs text-muted-foreground">
         id {record.key}

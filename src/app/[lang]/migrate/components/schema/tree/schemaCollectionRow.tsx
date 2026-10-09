@@ -28,8 +28,8 @@ export const SchemaCollectionRow = ({
     <li
       className={cn(
         'flex items-center gap-2 border-b border-border/40 px-2 py-1',
-        'hover:bg-accent/60',
-        isActive && 'bg-accent',
+        'hover:bg-muted',
+        isActive && 'bg-muted',
         !isSelected && 'opacity-40',
       )}
     >
@@ -57,7 +57,7 @@ export const SchemaCollectionRow = ({
       {(destructive > 0 || entry.kind === 'delete') && (
         <span
           title={translate('schema-destructive-hint')}
-          className="shrink-0 font-bold text-destructive"
+          className="shrink-0 font-heading text-destructive"
         >
           !
         </span>

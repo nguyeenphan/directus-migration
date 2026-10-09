@@ -27,7 +27,7 @@ export const EnvBar = ({
 }: TProps) => {
   return (
     <header className="sticky top-0 z-20">
-      <div className="border-b bg-background/95 backdrop-blur">
+      <div className="border-b-2 bg-secondary-background">
         <div className="relative mx-auto flex max-w-[1600px] items-center justify-center px-6 py-2">
           <div className="absolute left-6 flex items-center gap-3">
             <EnvEndpoint connection={source} />

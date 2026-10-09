@@ -17,17 +17,17 @@ export const SchemaDetail = ({ entry }: TProps) => {
 
   if (!entry) {
     return (
-      <div className="flex h-full items-center justify-center border p-6 text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
         {translate('schema-pick-a-collection')}
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col border">
+    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
       <header className="flex items-center gap-2 border-b px-3 py-2">
         <DiffMark kind={entry.kind} label={translate(`change-${entry.kind}`)} />
-        <span className="identifier truncate font-medium">
+        <span className="identifier truncate font-base">
           {entry.collection}
         </span>
         {entry.dependents.length > 0 && (
@@ -52,7 +52,7 @@ export const SchemaDetail = ({ entry }: TProps) => {
 
           return (
             <section key={kind}>
-              <h3 className="border-b bg-muted/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <h3 className="border-b bg-muted/40 px-3 py-1 text-xs font-heading uppercase tracking-wide text-muted-foreground">
                 {translate(`schema-fields-${kind}`, { count: fields.length })}
               </h3>
               <ul>

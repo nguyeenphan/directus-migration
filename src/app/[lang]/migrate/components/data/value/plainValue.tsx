@@ -13,7 +13,7 @@ export const PlainValue = ({ text, isNew = false }: TProps) => (
     className={cn(
       'identifier wrap-break-word',
       text === null && 'text-muted-foreground/50',
-      isNew && 'font-medium text-foreground',
+      isNew && 'font-base text-foreground',
     )}
   >
     {text ?? NOTHING}

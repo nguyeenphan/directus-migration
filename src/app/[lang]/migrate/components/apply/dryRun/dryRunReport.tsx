@@ -17,12 +17,12 @@ export const DryRunReport = ({ report }: TProps) => {
   return (
     <section
       className={cn(
-        'border',
+        'rounded-base border-2 bg-secondary-background',
         hasProblems ? 'border-2 border-destructive' : 'border-success',
       )}
     >
       <header className="flex flex-wrap items-center gap-3 border-b px-3 py-2 text-sm">
-        <span className="font-semibold">{translate('dry-run-title')}</span>
+        <span className="font-heading">{translate('dry-run-title')}</span>
         <span className="identifier text-muted-foreground">
           {translate('dry-run-summary', {
             rows: report.totalRows,
@@ -31,7 +31,7 @@ export const DryRunReport = ({ report }: TProps) => {
         </span>
         <span
           className={cn(
-            'identifier ml-auto font-bold',
+            'identifier ml-auto font-heading',
             hasProblems ? 'text-destructive' : 'text-success',
           )}
         >

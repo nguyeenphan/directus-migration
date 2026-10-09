@@ -23,7 +23,7 @@ export const DryRunLine = ({ line }: TProps) => {
         onClick={() => setIsOpen((current) => !current)}
         disabled={!hasProblems}
         aria-expanded={isOpen}
-        className="flex w-full items-center gap-2 px-3 text-left hover:bg-accent/60 disabled:hover:bg-transparent"
+        className="flex w-full items-center gap-2 px-3 text-left hover:bg-muted disabled:hover:bg-transparent"
       >
         {hasProblems ? (
           isOpen ? (
@@ -42,7 +42,7 @@ export const DryRunLine = ({ line }: TProps) => {
           +{line.toCreate} ~{line.toUpdate}
         </span>
         {hasProblems && (
-          <span className="identifier shrink-0 font-bold text-destructive">
+          <span className="identifier shrink-0 font-heading text-destructive">
             ! {line.violations.length}
           </span>
         )}

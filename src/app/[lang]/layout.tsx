@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist_Mono, Inter } from 'next/font/google';
+import { Be_Vietnam_Pro } from 'next/font/google';
 import { notFound } from 'next/navigation';
 
 import { SUPPORTED_LANGUAGES } from '@/constants/locales';
@@ -10,11 +10,11 @@ import { cn } from '@/utils/cn';
 
 import '../globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono-family',
+// Not a variable font: only the two weights the theme uses are loaded.
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ['latin', 'latin-ext', 'vietnamese'],
+  weight: ['500', '900'],
+  variable: '--font-sans',
 });
 
 const THEME_SCRIPT = `try{if(localStorage.getItem('directus-migration-theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`;
@@ -45,11 +45,7 @@ const RootLayout = async ({ children, params }: LayoutProps<'/[lang]'>) => {
       lang={lang}
 
       suppressHydrationWarning
-      className={cn(
-        'h-full font-sans antialiased',
-        inter.variable,
-        geistMono.variable,
-      )}
+      className={cn('h-full font-sans antialiased', beVietnamPro.variable)}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

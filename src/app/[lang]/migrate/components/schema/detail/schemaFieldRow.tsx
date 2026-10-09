@@ -25,7 +25,7 @@ export const SchemaFieldRow = ({ field }: TProps) => {
     >
       <div className="flex items-center gap-2">
         <DiffMark kind={field.kind} label={translate(`change-${field.kind}`)} />
-        <span className="identifier truncate font-medium">{field.field}</span>
+        <span className="identifier truncate font-base">{field.field}</span>
       </div>
 
       {field.kind === 'modify' && field.targetType !== field.sourceType && (
@@ -33,7 +33,7 @@ export const SchemaFieldRow = ({ field }: TProps) => {
           <dt className="text-muted-foreground">{translate('value-target')}</dt>
           <dd className="identifier">{field.targetType ?? NOTHING}</dd>
           <dt className="text-muted-foreground">{translate('value-source')}</dt>
-          <dd className="identifier font-medium">
+          <dd className="identifier font-base">
             {field.sourceType ?? NOTHING}
           </dd>
         </dl>
@@ -64,7 +64,7 @@ export const SchemaFieldRow = ({ field }: TProps) => {
                   →
                 </dt>
                 <dd
-                  className="identifier truncate font-medium"
+                  className="identifier truncate font-base"
                   title={attribute.after ?? undefined}
                 >
                   {attribute.after ?? NOTHING}
@@ -90,7 +90,7 @@ export const SchemaFieldRow = ({ field }: TProps) => {
       )}
 
       {field.destructive && (
-        <p className="ml-5 flex items-center gap-1.5 text-xs font-medium text-destructive">
+        <p className="ml-5 flex items-center gap-1.5 text-xs font-base text-destructive">
           <TriangleAlert className="size-3.5 shrink-0" />
           {translate('schema-may-lose-data')}
         </p>

@@ -47,8 +47,8 @@ export const RelaxBanner = ({ target, canRepair }: TProps) => {
   };
 
   return (
-    <div className="border-2 border-destructive p-3">
-      <p className="flex items-center gap-2 font-semibold text-destructive">
+    <div className="rounded-base border-2 border-destructive bg-secondary-background p-3">
+      <p className="flex items-center gap-2 font-heading text-destructive">
         <ShieldAlert className="size-4" />
         {translate('relax-pending-title')}
       </p>

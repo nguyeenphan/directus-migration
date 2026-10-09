@@ -19,7 +19,7 @@ export const SchemaGroup = ({
   children,
 }: TProps) => (
   <section>
-    <h3 className="sticky top-0 z-10 flex items-center gap-1 border-b bg-background px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <h3 className="sticky top-0 z-10 flex items-center gap-1 border-b bg-background px-2 py-1 text-xs font-heading uppercase tracking-wide text-muted-foreground">
       {isCollapsible ? (
         <button
           type="button"

@@ -153,7 +153,7 @@ export const DataStep = ({
         <div className="grid flex-1 place-items-center">
           <div className="flex flex-col items-center gap-3 text-center">
             <Check className="size-8 text-success" strokeWidth={1.5} />
-            <p className="text-xl font-semibold tracking-tight">
+            <p className="text-xl font-heading tracking-tight">
               {translate('data-in-sync-title')}
             </p>
             <p className="max-w-sm text-sm text-muted-foreground">
@@ -190,20 +190,20 @@ export const DataStep = ({
 
         <ResizablePanel defaultSize={30} minSize={18}>
           {!browser.active && (
-            <div className="flex h-full items-center justify-center border p-6 text-sm text-muted-foreground">
+            <div className="flex h-full items-center justify-center rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
               {translate('data-pick-a-collection')}
             </div>
           )}
           {browser.detail?.phase === 'loading' && (
-            <div className="flex h-full items-center justify-center gap-2 border p-6 text-sm text-muted-foreground">
+            <div className="flex h-full items-center justify-center gap-2 rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               {translate('data-loading')}
             </div>
           )}
           {browser.detail?.phase === 'error' && (
-            <div className="h-full border-2 border-destructive p-3">
+            <div className="h-full rounded-base border-2 border-destructive bg-secondary-background p-3">
               <div className="flex items-start gap-2">
-                <p className="font-semibold text-destructive">
+                <p className="font-heading text-destructive">
                   {translate('data-load-failed')}
                 </p>
                 <button
@@ -244,10 +244,10 @@ export const DataStep = ({
       </ResizablePanelGroup>
 
       {dependencies.length > 0 && (
-        <section className="border border-warning">
+        <section className="rounded-base border-2 bg-secondary-background border-warning">
           <div className="flex items-center gap-2 border-b px-3 py-1.5">
             <TriangleAlert className="size-4 shrink-0 text-warning" />
-            <p className="text-sm font-semibold text-warning">
+            <p className="text-sm font-heading text-warning">
               {translate('data-dependency-title', {
                 count: dependencies.length,
               })}
@@ -286,7 +286,7 @@ export const DataStep = ({
       )}
 
       {totals.delete > 0 && (
-        <section className="border border-destructive px-3 py-2">
+        <section className="rounded-base border-2 bg-secondary-background border-destructive px-3 py-2">
           <label className="flex items-start gap-2 text-sm">
             <Checkbox
               checked={mirrorData}
@@ -294,7 +294,7 @@ export const DataStep = ({
               className="mt-0.5"
             />
             <span>
-              <span className="font-semibold text-destructive">
+              <span className="font-heading text-destructive">
                 {translate('data-mirror-title', { count: totals.delete })}
               </span>
               <span className="mt-0.5 block text-xs text-muted-foreground">

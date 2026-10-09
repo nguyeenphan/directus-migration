@@ -44,7 +44,7 @@ export const Stepper = ({ current, blocked, onNavigate }: TProps) => {
                   style={{ top: MARKER_SIZE / 2 }}
                   className={cn(
                     'absolute right-1/2 z-0 h-px w-full',
-                    index <= currentIndex ? 'bg-primary/50' : 'bg-border',
+                    index <= currentIndex ? 'bg-main/50' : 'bg-border',
                   )}
                 />
               )}
@@ -63,14 +63,14 @@ export const Stepper = ({ current, blocked, onNavigate }: TProps) => {
                 <span
                   style={{ width: MARKER_SIZE, height: MARKER_SIZE }}
                   className={cn(
-                    'relative z-10 flex items-center justify-center rounded-full border transition-none',
-                    isCurrent &&
-                      'border-primary bg-primary text-primary-foreground',
-                    isDone && 'border-primary/50 bg-background text-primary',
+                    'relative z-10 flex items-center justify-center rounded-full border-2 transition-none',
+                    isCurrent && 'border-border bg-main text-main-foreground',
+                    isDone &&
+                      'border-border bg-secondary-background text-foreground',
                     !isCurrent &&
                       !isDone &&
                       'border-transparent bg-muted text-muted-foreground/70',
-                    isEnabled && !isCurrent && 'group-hover:border-primary/60',
+                    isEnabled && !isCurrent && 'group-hover:border-main/60',
                   )}
                 >
                   <Icon className="size-3.5" />
@@ -78,9 +78,9 @@ export const Stepper = ({ current, blocked, onNavigate }: TProps) => {
 
                 <span
                   className={cn(
-                    'whitespace-nowrap text-[11px] leading-none',
+                    'whitespace-nowrap text-xs leading-none',
                     isCurrent
-                      ? 'font-semibold text-foreground'
+                      ? 'font-heading text-foreground'
                       : 'text-muted-foreground',
                   )}
                 >

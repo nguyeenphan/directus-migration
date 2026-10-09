@@ -86,7 +86,7 @@ export const SchemaStep = ({
         <div className="grid flex-1 place-items-center">
           <div className="flex flex-col items-center gap-3 text-center">
             <Check className="size-8 text-success" strokeWidth={1.5} />
-            <p className="text-xl font-semibold tracking-tight">
+            <p className="text-xl font-heading tracking-tight">
               {translate('schema-in-sync-title')}
             </p>
             <p className="max-w-sm text-sm text-muted-foreground">
@@ -114,7 +114,7 @@ export const SchemaStep = ({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">{translate('schema-title')}</h1>
+        <h1 className="text-xl font-heading">{translate('schema-title')}</h1>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox
             checked={applySchema}
@@ -127,10 +127,10 @@ export const SchemaStep = ({
       <CompatibilityNotice compatibility={plan.compatibility} />
 
       {stranded.length > 0 && (
-        <div className="flex items-start gap-2 border border-warning p-3 text-sm text-warning">
+        <div className="flex items-start gap-2 rounded-base border-2 bg-secondary-background border-warning p-3 text-sm text-warning">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <div className="flex flex-col gap-1">
-            <p className="font-semibold">
+            <p className="font-heading">
               {translate('schema-stranded-title', { count: stranded.length })}
             </p>
             <ul className="identifier text-xs">
@@ -174,7 +174,7 @@ export const SchemaStep = ({
           })}
         </span>
         {destructive.length > 0 && (
-          <span className="identifier font-bold text-destructive">
+          <span className="identifier font-heading text-destructive">
             {translate('schema-destructive-count', {
               count: destructive.length,
             })}

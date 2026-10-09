@@ -48,9 +48,9 @@ export const ConnectStep = ({
   const translate = useTranslate();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 -mr-1 overflow-y-auto pr-1 pb-1">
       <div>
-        <h1 className="text-xl font-semibold">{translate('connect-title')}</h1>
+        <h1 className="text-xl font-heading">{translate('connect-title')}</h1>
         <p className="text-sm text-muted-foreground">
           {translate('connect-description')}
         </p>
@@ -95,8 +95,8 @@ export const ConnectStep = ({
       )}
 
       {planError && (
-        <div className="border-2 border-destructive p-3">
-          <p className="font-semibold text-destructive">
+        <div className="rounded-base border-2 border-destructive bg-secondary-background p-3">
+          <p className="font-heading text-destructive">
             {translate('plan-failed')}
           </p>
           <pre className="identifier mt-1 overflow-x-auto text-sm">

@@ -16,10 +16,10 @@ export const ProbeResult = ({ result }: TProps) => {
 
   if (!result.ok) {
     return (
-      <div className="flex items-start gap-2 border-2 border-destructive p-3 text-sm text-destructive">
+      <div className="flex items-start gap-2 rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
         <X className="mt-0.5 size-4 shrink-0" />
         <div className="flex flex-col gap-1">
-          <p className="font-semibold">
+          <p className="font-heading">
             {translate(`connect-error-${result.reason}`)}
           </p>
           <p className="text-xs">{translate(`connect-fix-${result.reason}`)}</p>
@@ -34,8 +34,8 @@ export const ProbeResult = ({ result }: TProps) => {
   const { probe } = result;
 
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border border-success p-3 text-sm">
-      <div className="col-span-2 flex items-center gap-2 font-semibold text-success">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-base border-2 bg-secondary-background border-success p-3 text-sm">
+      <div className="col-span-2 flex items-center gap-2 font-heading text-success">
         <Check className="size-4" />
         {translate('connect-ok')}
       </div>

@@ -13,7 +13,7 @@ type TProps = {
 export const FieldValueSide = ({ label, text, isNew = false }: TProps) => (
   <div className="flex min-w-0 flex-col gap-2">
     <div className="flex items-center gap-2">
-      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       {text !== null && (
@@ -22,9 +22,9 @@ export const FieldValueSide = ({ label, text, isNew = false }: TProps) => (
     </div>
     <pre
       className={cn(
-        'identifier max-h-[50vh] overflow-auto whitespace-pre-wrap wrap-break-word border p-2 text-xs',
+        'identifier max-h-[50vh] overflow-auto whitespace-pre-wrap wrap-break-word rounded-base border-2 bg-secondary-background p-2 text-xs',
         text === null && 'text-muted-foreground/50',
-        isNew && 'font-medium text-foreground',
+        isNew && 'font-base text-foreground',
       )}
     >
       {text ?? NOTHING}

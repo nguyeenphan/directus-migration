@@ -63,7 +63,7 @@ export const RecordDetail = ({ record, position, onNavigate }: TProps) => {
 
   if (!record) {
     return (
-      <div className="flex h-full items-center justify-center border p-6 text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
         {translate('data-pick-a-record')}
       </div>
     );
@@ -83,7 +83,7 @@ export const RecordDetail = ({ record, position, onNavigate }: TProps) => {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col border">
+    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
       <RecordHeader record={record} />
 
       <div className="diff-dense min-h-0 flex-1 overflow-y-auto">

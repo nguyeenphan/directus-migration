@@ -18,9 +18,9 @@ export const SequenceResets = ({ run }: TProps) => {
   });
 
   return (
-    <section className="border border-warning p-3">
+    <section className="rounded-base border-2 bg-secondary-background border-warning p-3">
       <div className="flex items-center gap-2">
-        <p className="text-sm font-semibold text-warning">{title}</p>
+        <p className="text-sm font-heading text-warning">{title}</p>
         <CopyButton
           className="ml-auto"
           label={title}

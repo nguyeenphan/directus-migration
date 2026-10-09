@@ -87,7 +87,7 @@ export const SqlScriptButton = ({ generate, disabled }: TProps) => {
               </pre>
             </div>
           ) : (
-            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto border-2 p-3">
+            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto rounded-base border-2 p-3">
               <pre className="identifier text-xs wrap-break-word whitespace-pre-wrap">
                 {script.log.join('\n')}
               </pre>

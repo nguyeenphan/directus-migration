@@ -41,8 +41,8 @@ export const ConnectionCard = ({
     startTesting(async () => onProbe(await testConnection(connection)));
 
   return (
-    <section className="flex flex-col gap-4 border p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <section className="flex flex-col gap-4 rounded-base border-2 bg-background p-4 shadow-shadow">
+      <h2 className="text-xs font-heading uppercase tracking-wide text-muted-foreground">
         {caption}
       </h2>
 

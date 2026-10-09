@@ -32,7 +32,7 @@ export const CollectionList = ({
   const isInert = (row: TDataChange) => !mirrorData && isDeleteOnly(row);
 
   return (
-    <div className="flex h-full min-h-0 flex-col border">
+    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
       <CollectionSearchBar value={query} onChange={setQuery} />
 
       <ul className="diff-dense min-h-0 flex-1 overflow-y-auto">

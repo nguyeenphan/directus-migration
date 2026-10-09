@@ -10,7 +10,7 @@ type TProps = {
 
 export const StatusMark = ({ status }: TProps) => {
   if (status === 'running') {
-    return <Loader2 className="size-4 shrink-0 animate-spin text-primary" />;
+    return <Loader2 className="size-4 shrink-0 animate-spin text-main" />;
   }
   if (status === 'done') {
     return <Check className="size-4 shrink-0 text-success" />;

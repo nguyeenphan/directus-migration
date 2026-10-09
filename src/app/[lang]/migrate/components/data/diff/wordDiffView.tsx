@@ -23,7 +23,7 @@ export const WordDiffView = ({ before, after }: TProps) => {
   );
 
   return (
-    <div className="border">
+    <div className="rounded-base border-2 bg-secondary-background">
       <div className="flex items-center gap-1 border-b px-2 py-1">
         {[false, true].map((mode) => (
           <button
@@ -31,10 +31,10 @@ export const WordDiffView = ({ before, after }: TProps) => {
             type="button"
             onClick={() => setIsSideBySide(mode)}
             className={cn(
-              'px-2 py-0.5 text-[11px] uppercase tracking-wide',
+              'px-2 py-0.5 text-xs uppercase tracking-wide',
               isSideBySide === mode
-                ? 'bg-accent font-semibold'
-                : 'text-muted-foreground hover:bg-accent',
+                ? 'bg-main font-heading text-main-foreground'
+                : 'text-muted-foreground hover:bg-muted',
             )}
           >
             {translate(mode ? 'diff-side-by-side' : 'diff-inline')}

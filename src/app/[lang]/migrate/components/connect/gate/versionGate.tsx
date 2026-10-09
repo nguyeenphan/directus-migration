@@ -34,7 +34,7 @@ export const VersionGate = ({
   if (vendorMismatch) {
     return (
       <StatusBanner tone="error" icon={<X className="size-4" />}>
-        <p className="font-semibold">{translate('version-vendor-title')}</p>
+        <p className="font-heading">{translate('version-vendor-title')}</p>
         <p className="text-sm">{translate('version-vendor-detail')}</p>
       </StatusBanner>
     );
@@ -43,7 +43,7 @@ export const VersionGate = ({
   if (drift === 'same') {
     return (
       <StatusBanner tone="ok" icon={<Check className="size-4" />}>
-        <p className="font-semibold">
+        <p className="font-heading">
           {translate('version-match', { version: versions.source })}
         </p>
       </StatusBanner>
@@ -53,7 +53,7 @@ export const VersionGate = ({
   if (drift === 'patch') {
     return (
       <StatusBanner tone="warning" icon={<TriangleAlert className="size-4" />}>
-        <p className="font-semibold">
+        <p className="font-heading">
           {translate('version-patch-title', versions)}
         </p>
         <p className="text-sm">{translate('version-patch-detail')}</p>
@@ -71,7 +71,7 @@ export const VersionGate = ({
 
   return (
     <StatusBanner tone="error" icon={<X className="size-4" />}>
-      <p className="font-semibold">
+      <p className="font-heading">
         {translate('version-major-title', versions)}
       </p>
       <p className="text-sm">

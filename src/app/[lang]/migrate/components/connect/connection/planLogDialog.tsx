@@ -48,7 +48,7 @@ export const PlanLogDialog = ({
           </AlertDialogTitle>
         </AlertDialogHeader>
 
-        <div className="max-h-80 overflow-y-auto border-2 p-3">
+        <div className="max-h-80 overflow-y-auto rounded-base border-2 p-3">
           <pre className="identifier text-xs wrap-break-word whitespace-pre-wrap">
             {lines.join('\n')}
           </pre>

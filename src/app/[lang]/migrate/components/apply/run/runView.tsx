@@ -43,9 +43,9 @@ export const RunView = ({
   const progress = runProgress(run);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 -mr-1 overflow-y-auto pr-1 pb-1">
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-xl font-heading">
           {translate(`run-status-${run.status}`)}
         </h1>
         <span className="identifier text-sm text-muted-foreground tabular-nums">
@@ -70,7 +70,7 @@ export const RunView = ({
         {RUN_STAGES.map((stage) => (
           <li
             key={stage}
-            className="flex items-center gap-2 border px-3 py-1.5"
+            className="flex items-center gap-2 rounded-base border-2 bg-secondary-background px-3 py-1.5"
           >
             <StatusMark status={stageStatus(run, stage)} />
             <span className="identifier">{translate(`stage-${stage}`)}</span>

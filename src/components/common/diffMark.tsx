@@ -12,7 +12,7 @@ type TProps = {
 export const DiffMark = ({ kind, label, className }: TProps) => (
   <span
     className={cn(
-      'identifier inline-block w-3 shrink-0 text-center font-bold select-none',
+      'identifier inline-block w-3 shrink-0 text-center font-heading select-none',
       CHANGE_TEXT[kind],
       className,
     )}

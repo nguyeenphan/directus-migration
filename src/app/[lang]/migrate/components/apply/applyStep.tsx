@@ -90,8 +90,8 @@ export const ApplyStep = ({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
-      <h1 className="text-lg font-semibold">{translate('apply-title')}</h1>
+    <div className="flex min-h-0 flex-1 flex-col gap-5 -mr-1 overflow-y-auto pr-1 pb-1">
+      <h1 className="text-xl font-heading">{translate('apply-title')}</h1>
 
       <section className="grid gap-3 sm:grid-cols-3">
         <SummaryTile
@@ -109,8 +109,8 @@ export const ApplyStep = ({
         />
       </section>
 
-      <section className="border p-4">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="rounded-base border-2 bg-secondary-background p-4">
+        <h2 className="mb-2 text-xs font-heading uppercase tracking-wide text-muted-foreground">
           {translate('apply-order-title')}
         </h2>
         <ol className="diff-dense">
@@ -147,12 +147,12 @@ export const ApplyStep = ({
       {applyRun.report && <DryRunReport report={applyRun.report} />}
 
       {applyRun.error && (
-        <pre className="identifier border-2 border-destructive p-3 text-sm text-destructive">
+        <pre className="identifier rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
           {applyRun.error}
         </pre>
       )}
 
-      <section className="flex flex-col gap-2 border p-4">
+      <section className="flex flex-col gap-2 rounded-base border-2 bg-secondary-background p-4">
         <label className="flex items-start gap-2 text-sm text-muted-foreground">
           <Checkbox checked disabled className="mt-0.5" />
           {translate('apply-backup-mandatory')}

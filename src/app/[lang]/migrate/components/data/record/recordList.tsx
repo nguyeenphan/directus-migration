@@ -45,7 +45,7 @@ export const RecordList = ({
   const pickedCount = visible.filter((record) => isPicked(record.key)).length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col border">
+    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
       <div className="flex items-center gap-2 border-b px-2 py-1.5">
         <Checkbox
           checked={allPicked}
@@ -74,9 +74,9 @@ export const RecordList = ({
             <li key={`${record.kind}-${record.key}`}>
               <div
                 className={cn(
-                  'flex items-baseline gap-2 px-2 hover:bg-accent/60',
+                  'flex items-baseline gap-2 px-2 hover:bg-muted',
                   CHANGE_ROW[record.kind],
-                  activeKey === record.key && 'bg-accent',
+                  activeKey === record.key && 'bg-muted',
                   !isPicked(record.key) && 'opacity-40',
                 )}
               >

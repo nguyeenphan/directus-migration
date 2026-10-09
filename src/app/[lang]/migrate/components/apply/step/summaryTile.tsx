@@ -7,12 +7,12 @@ type TProps = {
 };
 
 export const SummaryTile = ({ label, value, tone }: TProps) => (
-  <div className="border p-3">
+  <div className="rounded-base border-2 bg-background p-3 shadow-shadow">
     <p className="text-xs uppercase tracking-wide text-muted-foreground">
       {label}
     </p>
     <p
-      className={`identifier text-2xl font-bold tabular-nums ${
+      className={`identifier text-2xl font-heading tabular-nums ${
         tone === 'danger' && value > 0 ? 'text-destructive' : ''
       }`}
     >

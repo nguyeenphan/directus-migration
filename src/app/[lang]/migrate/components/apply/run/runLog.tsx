@@ -24,9 +24,9 @@ export const RunLog = ({ run }: { run: TRun }) => {
   }, [run.log.length]);
 
   return (
-    <section className="border">
+    <section className="rounded-base border-2 bg-secondary-background">
       <div className="flex items-center gap-2 border-b px-3 py-1.5">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="text-xs font-heading uppercase tracking-wide text-muted-foreground">
           {translate('run-log')}
         </h2>
         <CopyButton
