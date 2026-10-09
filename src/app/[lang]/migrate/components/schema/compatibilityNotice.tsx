@@ -31,7 +31,7 @@ export const CompatibilityNotice = ({ compatibility }: TProps) => {
           : 'border-warning text-warning'
       }`}
     >
-      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <TriangleAlert className="h-lh w-4 shrink-0" />
 
       <div className="flex flex-col gap-1">
         <p className="font-heading">

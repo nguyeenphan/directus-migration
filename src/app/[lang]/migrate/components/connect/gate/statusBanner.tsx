@@ -18,7 +18,7 @@ export const StatusBanner = ({ tone, icon, children }: TProps) => (
   <div
     className={`flex items-start gap-2 rounded-base border-2 bg-secondary-background p-3 ${TONE[tone]}`}
   >
-    <span className="mt-0.5 shrink-0">{icon}</span>
+    <span className="flex h-lh shrink-0 items-center">{icon}</span>
     <div className="flex flex-col gap-1">{children}</div>
   </div>
 );

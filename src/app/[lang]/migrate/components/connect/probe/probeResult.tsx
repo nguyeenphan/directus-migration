@@ -17,7 +17,7 @@ export const ProbeResult = ({ result }: TProps) => {
   if (!result.ok) {
     return (
       <div className="flex items-start gap-2 rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
-        <X className="mt-0.5 size-4 shrink-0" />
+        <X className="h-lh w-4 shrink-0" />
         <div className="flex flex-col gap-1">
           <p className="font-heading">
             {translate(`connect-error-${result.reason}`)}
