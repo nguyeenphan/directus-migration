@@ -1,6 +1,7 @@
+'use client';
+
 import * as React from 'react';
 import { Input as InputPrimitive } from '@base-ui/react/input';
-
 import { cn } from '@/utils/cn';
 
 function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
@@ -9,7 +10,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
       type={type}
       data-slot="input"
       className={cn(
-        'h-8 w-full min-w-0 rounded-base border-2 border-border bg-secondary-background px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-base file:text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive md:text-sm dark:aria-invalid:border-destructive/50',
+        'h-11 w-full min-w-0 rounded-lg bg-sunken px-3.5 text-sm shadow-hairline transition-shadow outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:font-mono file:text-xs file:text-foreground placeholder:text-faint focus-visible:shadow-focus disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:shadow-invalid',
         className,
       )}
       {...props}

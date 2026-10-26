@@ -44,9 +44,9 @@ export const SchemaFilterBar = ({
             type="button"
             onClick={() => onFilterChange(option)}
             className={cn(
-              'identifier flex items-center rounded-md border-2 px-2 py-0.5 text-xs',
+              'identifier flex items-center rounded-md border px-2 py-0.5 text-xs',
               filter === option
-                ? 'border-foreground bg-main font-heading text-main-foreground'
+                ? 'border-foreground bg-brand font-heading text-brand-foreground'
                 : 'border-border text-muted-foreground hover:bg-muted',
             )}
           >

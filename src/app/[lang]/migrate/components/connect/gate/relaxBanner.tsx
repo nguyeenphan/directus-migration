@@ -54,7 +54,7 @@ export const RelaxBanner = ({
   };
 
   return (
-    <div className="rounded-base border-2 border-destructive bg-secondary-background p-3">
+    <div className="rounded-md border border-destructive bg-card p-3">
       <p className="flex items-center gap-2 font-heading text-destructive">
         <ShieldAlert className="size-4" />
         {translate('relax-pending-title')}

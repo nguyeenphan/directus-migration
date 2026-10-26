@@ -17,17 +17,17 @@ export const SchemaDetail = ({ entry }: TProps) => {
 
   if (!entry) {
     return (
-      <div className="flex h-full items-center justify-center rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center rounded-md border bg-card p-6 text-sm text-muted-foreground">
         {translate('schema-pick-a-collection')}
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
+    <div className="flex h-full min-h-0 flex-col rounded-md border bg-card">
       <header className="flex items-center gap-2 border-b px-3 py-2">
         <DiffMark kind={entry.kind} label={translate(`change-${entry.kind}`)} />
-        <span className="identifier truncate font-base">
+        <span className="identifier truncate font-medium">
           {entry.collection}
         </span>
         {entry.dependents.length > 0 && (

@@ -6,16 +6,17 @@ import type { TResult, TRow } from '@/models/common';
 import type { TConnection } from '@/models/connection';
 import { unknownMetaKeys } from '@/models/plan';
 import { withResult } from '@/utils/result';
+import { quoteIdent, SQL_PREAMBLE, sqlLiteral } from '@/utils/sql';
 
+import { inParentOrder } from './folders';
 import {
   compatibilityOf,
   onlyCollections,
+  portableChanges,
   pruneUnknownMeta,
   readMetaColumns,
-  stripMetaChanges,
 } from './schema';
 import { diffSchema } from './schemaTransfer';
-import { quoteIdent, sqlLiteral } from './sqlScript';
 
 const META_TABLE = {
   collections: 'directus_collections',
@@ -84,9 +85,17 @@ const KEYWORD_DEFAULT =
 
 const FUNCTION_DEFAULT = /^\w+(\.\w+)?\([^()]*\)$/;
 
-const isSqlExpression = (value: string) => {
+const TEXT_TYPE = /char|text/i;
+
+// Directus hands a default over with its quotes stripped, so 'now()' the text
+// and now() the call look alike. On a text column it is read as the text.
+const isSqlExpression = (value: string, type: string) => {
   const text = value.trim();
-  return KEYWORD_DEFAULT.test(text) || FUNCTION_DEFAULT.test(text);
+
+  return (
+    !TEXT_TYPE.test(type) &&
+    (KEYWORD_DEFAULT.test(text) || FUNCTION_DEFAULT.test(text))
+  );
 };
 
 export const columnType = (schema: TColumnSchema) => {
@@ -128,7 +137,8 @@ const columnDefinition = (field: TObject) => {
   ) {
     parts.push(
       `DEFAULT ${
-        typeof fallback === 'string' && isSqlExpression(fallback)
+        typeof fallback === 'string' &&
+        isSqlExpression(fallback, schema.data_type ?? 'text')
           ? fallback
           : sqlLiteral(fallback)
       }`,
@@ -276,12 +286,15 @@ export const renderSchemaSql = (
     .map(wholeAdd)
     .filter((relation): relation is TObject => relation !== null);
 
+  const collectionMeta = newCollections
+    .map((entry) => wholeAdd(entry)?.meta)
+    .filter((row): row is TRow => Boolean(row));
+
   const meta = [
-    ...newCollections
-      .map(wholeAdd)
-      .map((entry) =>
-        entry?.meta ? insertMetaRow(META_TABLE.collections, entry.meta) : null,
-      ),
+    // A collection points at its folder through `group`, a foreign key.
+    ...inParentOrder(collectionMeta, 'collection', 'group').map((row) =>
+      insertMetaRow(META_TABLE.collections, row),
+    ),
 
     ...newFields.map((field) =>
       field.meta ? insertMetaRow(META_TABLE.fields, field.meta) : null,
@@ -363,7 +376,7 @@ export const buildSchemaSqlScript = (
 
     const structural = onlyCollections(
       pruneUnknownMeta(
-        stripMetaChanges(diff.diff as never),
+        portableChanges(diff.diff as never),
         compatibility.unknownMeta,
       ),
       selection,
@@ -380,6 +393,6 @@ export const buildSchemaSqlScript = (
     ];
 
     return sections.length > 0
-      ? sections.join('\n\n')
+      ? [SQL_PREAMBLE, ...sections].join('\n\n')
       : '-- No changes for the selected collections.';
   });

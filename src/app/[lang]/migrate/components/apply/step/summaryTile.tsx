@@ -7,7 +7,7 @@ type TProps = {
 };
 
 export const SummaryTile = ({ label, value, tone }: TProps) => (
-  <div className="rounded-base border-2 bg-background p-3 shadow-shadow">
+  <div className="rounded-md border bg-background p-3 shadow-glass-sm">
     <p className="text-xs uppercase tracking-wide text-muted-foreground">
       {label}
     </p>

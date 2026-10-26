@@ -257,7 +257,7 @@ export const groupTotals = (group: TCollectionGroup) =>
 /**
  * The records the user unticked, by collection. Everything not named here
  * travels — including records the review list never showed, because it is
- * capped and skips hidden fields. An allow-list would silently drop those.
+ * capped. An allow-list would silently drop those.
  */
 export type TRecordExclusions = Record<string, string[]>;
 

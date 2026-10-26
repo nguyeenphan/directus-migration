@@ -93,7 +93,7 @@ export const ApplyStep = ({
         />
 
         {applyRun.error && (
-          <pre className="identifier rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
+          <pre className="identifier rounded-md border border-destructive bg-card p-3 text-sm text-destructive">
             {applyRun.error}
           </pre>
         )}
@@ -123,7 +123,7 @@ export const ApplyStep = ({
         />
       </section>
 
-      <section className="rounded-base border-2 bg-secondary-background p-4">
+      <section className="rounded-md border bg-card p-4">
         <h2 className="mb-2 text-xs font-heading uppercase tracking-wide text-muted-foreground">
           {translate('apply-order-title')}
         </h2>
@@ -161,12 +161,12 @@ export const ApplyStep = ({
       {dryRun.report && <DryRunReport report={dryRun.report} />}
 
       {error && (
-        <pre className="identifier rounded-base border-2 border-destructive bg-secondary-background p-3 text-sm text-destructive">
+        <pre className="identifier rounded-md border border-destructive bg-card p-3 text-sm text-destructive">
           {error}
         </pre>
       )}
 
-      <section className="flex flex-col gap-2 rounded-base border-2 bg-secondary-background p-4">
+      <section className="flex flex-col gap-2 rounded-md border bg-card p-4">
         <label className="flex items-start gap-2 text-sm text-muted-foreground">
           <Checkbox checked disabled className="mt-0.5" />
           {translate('apply-backup-mandatory')}

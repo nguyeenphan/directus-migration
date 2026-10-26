@@ -93,26 +93,64 @@ test('relations become foreign keys, falling back to a derived constraint name',
   assert.equal(addForeignKey({ collection: 'posts', field: 'author' }), null);
 });
 
-test('keyword and call defaults stay raw, text defaults stay quoted', () => {
-  const defaultOf = (value: unknown) =>
-    addColumn({
-      collection: 'posts',
-      field: 'x',
-      schema: { data_type: 'text', default_value: value },
-    })?.match(/DEFAULT (.+);$/)?.[1];
+const defaultOf = (type: string, value: unknown) =>
+  addColumn({
+    collection: 'posts',
+    field: 'x',
+    schema: { data_type: type, default_value: value },
+  })?.match(/DEFAULT (.+);$/)?.[1];
 
-  assert.equal(defaultOf('CURRENT_TIMESTAMP'), 'CURRENT_TIMESTAMP');
-  assert.equal(defaultOf('current_date'), 'current_date');
+test('keyword and call defaults stay raw, text defaults stay quoted', () => {
   assert.equal(
-    defaultOf("nextval('posts_id_seq'::regclass)"),
+    defaultOf('timestamp with time zone', 'CURRENT_TIMESTAMP'),
+    'CURRENT_TIMESTAMP',
+  );
+  assert.equal(defaultOf('date', 'current_date'), 'current_date');
+  assert.equal(
+    defaultOf('integer', "nextval('posts_id_seq'::regclass)"),
     "nextval('posts_id_seq'::regclass)",
   );
-  assert.equal(defaultOf('gen_random_uuid()'), 'gen_random_uuid()');
-  assert.equal(defaultOf('Hello (world)'), "'Hello (world)'");
+  assert.equal(defaultOf('uuid', 'gen_random_uuid()'), 'gen_random_uuid()');
+  assert.equal(defaultOf('text', 'Hello (world)'), "'Hello (world)'");
   assert.equal(
-    defaultOf('CURRENT_TIMESTAMP is a phrase'),
+    defaultOf('timestamp with time zone', 'CURRENT_TIMESTAMP is a phrase'),
     "'CURRENT_TIMESTAMP is a phrase'",
   );
+});
+
+test('on a text column a default is the text itself, even when it reads like sql', () => {
+  assert.equal(defaultOf('text', 'Hello(world)'), "'Hello(world)'");
+  assert.equal(
+    defaultOf('character varying', 'CURRENT_USER'),
+    "'CURRENT_USER'",
+  );
+  assert.equal(defaultOf('character', 'now()'), "'now()'");
+});
+
+test('a collection is written after the folder it sits in', () => {
+  const collection = (name: string, group: string | null) => ({
+    collection: name,
+    ...added({ collection: name, meta: { collection: name, group } }),
+  });
+
+  const sql = renderSchemaSql({
+    collections: [
+      collection('articles', 'content'),
+      collection('content', 'site'),
+      collection('site', null),
+      collection('loose', 'already_on_the_target'),
+    ],
+  }).join('\n\n');
+
+  const at = (values: string) => {
+    const index = sql.indexOf(`VALUES (${values})`);
+    assert.notEqual(index, -1, values);
+    return index;
+  };
+
+  assert.ok(at(`'site', NULL`) < at(`'content', 'site'`));
+  assert.ok(at(`'content', 'site'`) < at(`'articles', 'content'`));
+  at(`'loose', 'already_on_the_target'`);
 });
 
 test('metadata inserts drop the auto increment id', () => {

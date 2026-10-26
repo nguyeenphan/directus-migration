@@ -88,7 +88,7 @@ export const buildSchemaPlan = async (
 
   return {
     plan: assemble(
-      stripMetaChanges(diff),
+      portableChanges(diff),
       snapshot,
       fieldTypes(targetSnapshot),
       compatibility,
@@ -218,7 +218,7 @@ const prunedChange = (change: TDiffChange, drop: ReadonlySet<string>) => {
 /**
  * Newly created objects carry their whole `meta` over, so a key the target has
  * no column for reaches the insert and fails it. Meta-only edits on objects
- * that already exist are dropped earlier, by `stripMetaChanges`.
+ * that already exist are dropped earlier, by `portableChanges`.
  */
 export const pruneUnknownMeta = (
   diff: TDiffDocument,
@@ -366,11 +366,21 @@ const withoutMeta = (entries: TDiffEntry[] = []): TDiffEntry[] =>
     }))
     .filter((entry) => entry.diff.length > 0);
 
-export const stripMetaChanges = (diff: TDiffDocument): TDiffDocument => ({
+const withoutSystem = (entries: TDiffEntry[] = []): TDiffEntry[] =>
+  entries.filter((entry) => !isSystemName(String(entry.collection ?? '')));
+
+/**
+ * Drops what /schema/apply cannot take: metadata-only changes, and anything
+ * naming a `directus_` collection. A newer source lists system collections
+ * the target's version does not have (directus_oauth_codes, say) and apply
+ * refuses the whole document over them — `systemFields`, which is how custom
+ * fields on system collections travel, is left untouched.
+ */
+export const portableChanges = (diff: TDiffDocument): TDiffDocument => ({
   ...diff,
-  collections: withoutMeta(diff.collections),
-  fields: withoutMeta(diff.fields),
-  relations: withoutMeta(diff.relations),
+  collections: withoutSystem(withoutMeta(diff.collections)),
+  fields: withoutSystem(withoutMeta(diff.fields)),
+  relations: withoutSystem(withoutMeta(diff.relations)),
 });
 
 export const onlyCollections = (

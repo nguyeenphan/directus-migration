@@ -25,7 +25,7 @@ export const CompatibilityNotice = ({ compatibility }: TProps) => {
 
   return (
     <div
-      className={`flex items-start gap-2 rounded-base border-2 bg-secondary-background p-3 text-sm ${
+      className={`flex items-start gap-2 rounded-md border bg-card p-3 text-sm ${
         tone === 'destructive'
           ? 'border-destructive text-destructive'
           : 'border-warning text-warning'

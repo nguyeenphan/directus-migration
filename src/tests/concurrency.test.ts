@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { mapLimit } from '@/utils/concurrency';
+import { mapLimit, mapLimitRetryingLast } from '@/utils/concurrency';
 
 test('results keep the order of the input, never more than the limit at once', async () => {
   let running = 0;
@@ -32,5 +32,44 @@ test('one failure rejects the whole call', async () => {
       return value;
     }),
     /boom/,
+  );
+});
+
+test('a transient failure is queued and run again at the end', async () => {
+  const order: string[] = [];
+  const failedOnce = new Set<string>();
+  const queued: string[] = [];
+
+  const results = await mapLimitRetryingLast(
+    ['a', 'b', 'c'],
+    2,
+    async (item) => {
+      order.push(item);
+      if (item === 'b' && !failedOnce.has(item)) {
+        failedOnce.add(item);
+        throw new Error('503');
+      }
+      return item.toUpperCase();
+    },
+    (error) => (error as Error).message === '503',
+    (item) => queued.push(item),
+  );
+
+  assert.deepEqual(results, ['A', 'B', 'C']);
+  assert.deepEqual(queued, ['b']);
+  assert.equal(order.at(-1), 'b');
+});
+
+test('a failure the test turns down rejects the whole call', async () => {
+  await assert.rejects(
+    mapLimitRetryingLast(
+      ['a'],
+      1,
+      async () => {
+        throw new Error('400');
+      },
+      () => false,
+    ),
+    /400/,
   );
 });

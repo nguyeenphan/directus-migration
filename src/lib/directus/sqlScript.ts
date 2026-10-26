@@ -27,6 +27,7 @@ import { chunkArray } from '@/utils/chunk';
 import { mapLimit } from '@/utils/concurrency';
 import { withResult } from '@/utils/result';
 import { asRows } from '@/utils/rows';
+import { quoteIdent, SQL_PREAMBLE, sqlLiteral } from '@/utils/sql';
 
 import {
   diffRows,
@@ -42,18 +43,8 @@ import { readColumns, unknownColumns } from './schema';
 
 const AUDIT = new Set<string>(AUDIT_FIELDS);
 
-export const quoteIdent = (name: string) => `"${name.replace(/"/g, '""')}"`;
-
-export const sqlLiteral = (value: unknown): string => {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
-  if (typeof value === 'number')
-    return Number.isFinite(value) ? String(value) : 'NULL';
-
-  const text =
-    typeof value === 'object' ? JSON.stringify(value) : String(value);
-  return `'${text.replace(/'/g, "''")}'`;
-};
+const valueOf = (column: string, row: TRow) =>
+  AUDIT.has(column) ? 'NULL' : sqlLiteral(row[column]);
 
 export const insertStub = (
   table: string,
@@ -67,10 +58,7 @@ export const insertStub = (
 const assignmentsOf = (primaryKey: string, columns: string[], row: TRow) =>
   columns
     .filter((col) => col !== primaryKey)
-    .map(
-      (col) =>
-        `${quoteIdent(col)} = ${AUDIT.has(col) ? 'NULL' : sqlLiteral(row[col])}`,
-    );
+    .map((col) => `${quoteIdent(col)} = ${valueOf(col, row)}`);
 
 export const updateStatement = (
   table: string,
@@ -106,7 +94,7 @@ export const insertRow = (
   row: TRow,
 ) =>
   `INSERT INTO ${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) ` +
-  `VALUES (${columns.map((col) => sqlLiteral(row[col])).join(', ')}) ` +
+  `VALUES (${columns.map((col) => valueOf(col, row)).join(', ')}) ` +
   `ON CONFLICT (${quoteIdent(primaryKey)}) DO NOTHING;`;
 
 export const deleteStatement = (
@@ -291,7 +279,7 @@ export const buildSqlScript = (
     ].filter((text): text is string => text !== null);
 
     return sections.length > 0
-      ? sections.join('\n\n')
+      ? [SQL_PREAMBLE, ...sections].join('\n\n')
       : '-- No changes for the selected collections.';
   });
 
@@ -305,31 +293,57 @@ type TCollectionSides = {
   isSingleton: boolean;
   skipped: string[];
 
-  csvColumns: string[];
+  shapes: TStoredShapes;
   sourceRows: TRow[];
   targetByKey: Map<string, TRow>;
 };
 
-// Directus reads a csv field back as an array but stores it as one
-// comma-separated string; written as JSON the CMS could no longer parse it.
-const csvColumnsOf = (snapshot: SchemaSnapshotOutput, collection: string) =>
-  snapshot.fields
-    .filter((field) => field.collection === collection)
-    .filter(
-      (field) =>
-        field.type === 'csv' ||
-        (field.meta?.special ?? []).includes('cast-csv'),
-    )
-    .map((field) => String(field.field));
+type TStoredShapes = Map<string, 'csv' | 'json'>;
 
-const asStored = (row: TRow, csvColumns: string[]): TRow => {
-  if (csvColumns.length === 0) return row;
+type TSnapshotField = SchemaSnapshotOutput['fields'][number];
+
+const storedShapeOf = (field: TSnapshotField) => {
+  const special = field.meta?.special ?? [];
+
+  if (field.type === 'csv' || special.includes('cast-csv')) return 'csv';
+
+  return field.type === 'json' ||
+    special.includes('cast-json') ||
+    /^jsonb?$/.test(String(field.schema?.data_type))
+    ? 'json'
+    : null;
+};
+
+/**
+ * The columns Directus reads back in another shape than the one stored. A csv
+ * field comes as an array but is kept as one comma-separated string. A json
+ * field comes as whatever it parses to: a bare `5` or `true` would be written
+ * as an integer or a boolean, which a json column refuses.
+ */
+export const storedShapesOf = (
+  snapshot: SchemaSnapshotOutput,
+  collection: string,
+): TStoredShapes =>
+  new Map(
+    snapshot.fields
+      .filter((field) => field.collection === collection)
+      .flatMap((field) => {
+        const shape = storedShapeOf(field);
+        return shape ? [[String(field.field), shape] as const] : [];
+      }),
+  );
+
+export const asStored = (row: TRow, shapes: TStoredShapes): TRow => {
+  if (shapes.size === 0) return row;
 
   const stored = { ...row };
 
-  for (const column of csvColumns) {
+  for (const [column, shape] of shapes) {
     const value = stored[column];
-    if (Array.isArray(value)) stored[column] = value.join(',');
+    if (value === null || value === undefined) continue;
+
+    if (shape === 'json') stored[column] = JSON.stringify(value);
+    else if (Array.isArray(value)) stored[column] = value.join(',');
   }
 
   return stored;
@@ -357,7 +371,7 @@ const readSides = async (
     columns,
     isSingleton: isSingletonCollection(snapshot, collection),
     skipped,
-    csvColumns: csvColumnsOf(snapshot, collection),
+    shapes: storedShapesOf(snapshot, collection),
     sourceRows,
     targetByKey: new Map(
       (targetRows ?? []).map((item) => [String(item[primaryKey]), item]),
@@ -389,7 +403,7 @@ const diffSingleton = (sides: TCollectionSides): TCollectionDiff => {
   if (!sourceRow) return empty;
 
   const targetRow = [...sides.targetByKey.values()][0];
-  const stored = asStored(sourceRow, sides.csvColumns);
+  const stored = asStored(sourceRow, sides.shapes);
 
   if (!targetRow) return { ...empty, newRows: [stored] };
 
@@ -405,7 +419,7 @@ const diffSides = (
 ): TCollectionDiff => {
   if (sides.isSingleton) return diffSingleton(sides);
 
-  const { collection, primaryKey, columns, skipped, csvColumns } = sides;
+  const { collection, primaryKey, columns, skipped, shapes } = sides;
 
   const { newRows, changedRows, extraKeys } = diffRows({
     primaryKey,
@@ -421,8 +435,8 @@ const diffSides = (
     primaryKey,
     columns,
     isSingleton: false,
-    newRows: newRows.map((row) => asStored(row, csvColumns)),
-    changedRows: changedRows.map((row) => asStored(row, csvColumns)),
+    newRows: newRows.map((row) => asStored(row, shapes)),
+    changedRows: changedRows.map((row) => asStored(row, shapes)),
     extraKeys,
     skipped,
   };

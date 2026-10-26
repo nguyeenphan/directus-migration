@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  Check,
-  ListRestart,
-  Loader2,
-  RotateCcw,
-  TriangleAlert,
-} from 'lucide-react';
+import { Check, ListRestart, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { generateSqlScript } from '@/app/[lang]/migrate/operations';
@@ -47,6 +41,11 @@ import { cn } from '@/utils/cn';
 import { RecompareButton } from '../recompareButton';
 import { SqlScriptButton } from '../sqlScriptButton';
 import { CollectionList } from './collection/collectionList';
+import {
+  CollectionListSkeleton,
+  RecordDetailSkeleton,
+  RecordListSkeleton,
+} from './panelSkeletons';
 import { RecordDetail } from './record/recordDetail';
 import { RecordList } from './record/recordList';
 
@@ -180,32 +179,33 @@ export const DataStep = ({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <ResizablePanelGroup className="min-h-0 flex-1 gap-2">
         <ResizablePanel defaultSize={24} minSize={16}>
-          <CollectionList
-            rows={rows}
-            selection={selection}
-            mirrorData={mirrorData}
-            active={browser.active}
-            onToggle={toggle}
-            onInspect={browser.inspect}
-          />
+          {isRecomparing ? (
+            <CollectionListSkeleton label={translate('data-loading')} />
+          ) : (
+            <CollectionList
+              rows={rows}
+              selection={selection}
+              mirrorData={mirrorData}
+              active={browser.active}
+              onToggle={toggle}
+              onInspect={browser.inspect}
+            />
+          )}
         </ResizablePanel>
 
         <ResizableHandle withHandle />
 
         <ResizablePanel defaultSize={30} minSize={18}>
           {!browser.active && (
-            <div className="flex h-full items-center justify-center rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
+            <div className="flex h-full items-center justify-center rounded-md border bg-card p-6 text-sm text-muted-foreground">
               {translate('data-pick-a-collection')}
             </div>
           )}
           {browser.detail?.phase === 'loading' && (
-            <div className="flex h-full items-center justify-center gap-2 rounded-base border-2 bg-secondary-background p-6 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              {translate('data-loading')}
-            </div>
+            <RecordListSkeleton label={translate('data-loading')} />
           )}
           {browser.detail?.phase === 'error' && (
-            <div className="h-full rounded-base border-2 border-destructive bg-secondary-background p-3">
+            <div className="h-full rounded-md border border-destructive bg-card p-3">
               <div className="flex items-start gap-2">
                 <p className="font-heading text-destructive">
                   {translate('data-load-failed')}
@@ -240,16 +240,20 @@ export const DataStep = ({
         <ResizableHandle withHandle />
 
         <ResizablePanel defaultSize={46} minSize={28}>
-          <RecordDetail
-            record={browser.record}
-            position={{ index: browser.index, total: browser.records.length }}
-            onNavigate={browser.step}
-          />
+          {browser.detail?.phase === 'loading' ? (
+            <RecordDetailSkeleton label={translate('data-loading')} />
+          ) : (
+            <RecordDetail
+              record={browser.record}
+              position={{ index: browser.index, total: browser.records.length }}
+              onNavigate={browser.step}
+            />
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
 
       {dependencies.length > 0 && (
-        <section className="rounded-base border-2 bg-secondary-background border-warning">
+        <section className="rounded-md border bg-card border-warning">
           <div className="flex items-center gap-2 border-b px-3 py-1.5">
             <TriangleAlert className="size-4 shrink-0 text-warning" />
             <p className="text-sm font-heading text-warning">
@@ -291,7 +295,7 @@ export const DataStep = ({
       )}
 
       {totals.delete > 0 && (
-        <section className="rounded-base border-2 bg-secondary-background border-destructive px-3 py-2">
+        <section className="rounded-md border bg-card border-destructive px-3 py-2">
           <label className="flex items-start gap-2 text-sm">
             <Checkbox
               checked={mirrorData}
@@ -381,12 +385,12 @@ export const DataStep = ({
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div className="absolute top-3 right-3 z-10">
               <CopyButton
-                className="rounded-base border-2 border-border bg-secondary-background p-1.5 text-foreground shadow-shadow [&_svg]:size-4"
+                className="rounded-md border border-border bg-card p-1.5 text-foreground shadow-glass-sm [&_svg]:size-4"
                 label={translate('data-sequence-title')}
                 text={() => sequenceSql}
               />
             </div>
-            <pre className="identifier min-h-0 flex-1 overflow-auto rounded-base border-2 bg-secondary-background p-3 pr-12 text-xs whitespace-pre">
+            <pre className="identifier min-h-0 flex-1 overflow-auto rounded-md border bg-card p-3 pr-12 text-xs whitespace-pre">
               {sequenceSql}
             </pre>
           </div>

@@ -17,8 +17,8 @@ export const DryRunReport = ({ report }: TProps) => {
   return (
     <section
       className={cn(
-        'rounded-base border-2 bg-secondary-background',
-        hasProblems ? 'border-2 border-destructive' : 'border-success',
+        'rounded-md border bg-card',
+        hasProblems ? 'border border-destructive' : 'border-success',
       )}
     >
       <header className="flex flex-wrap items-center gap-3 border-b px-3 py-2 text-sm">

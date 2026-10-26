@@ -17,7 +17,7 @@ export const EnvEndpoint = ({ connection }: TProps) => {
       <span
         className={cn(
           'identifier text-sm font-heading',
-          !host && 'font-base text-muted-foreground/60',
+          !host && 'font-medium text-muted-foreground/60',
         )}
       >
         {host || translate('env-not-set')}

@@ -80,7 +80,7 @@ export const getRecordChanges = (
 type TFieldDefinition = {
   field?: unknown;
   schema?: unknown;
-  meta?: { hidden?: boolean | null; interface?: string | null } | null;
+  meta?: { interface?: string | null } | null;
   type?: string;
 };
 
@@ -236,19 +236,19 @@ const readShapes = async (
       ]),
   );
 
-  return fields
-    .filter((field) => !field.meta?.hidden)
-    .map((field) => {
-      const name = String(field.field);
-      const related = relatedBy.get(name) ?? null;
+  // Hidden fields stay in: the counts compare every column, and a junction
+  // table is often nothing but hidden ones.
+  return fields.map((field) => {
+    const name = String(field.field);
+    const related = relatedBy.get(name) ?? null;
 
-      return {
-        field: name,
-        display: displayOf(field, related),
-        relatedCollection: related,
-        audit: AUDIT.has(name),
-      };
-    });
+    return {
+      field: name,
+      display: displayOf(field, related),
+      relatedCollection: related,
+      audit: AUDIT.has(name),
+    };
+  });
 };
 
 const displayOf = (

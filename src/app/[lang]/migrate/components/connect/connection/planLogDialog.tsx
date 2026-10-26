@@ -51,7 +51,7 @@ export const PlanLogDialog = ({
           </AlertDialogTitle>
         </AlertDialogHeader>
 
-        <div className="max-h-80 overflow-y-auto rounded-base border-2 bg-secondary-background p-3">
+        <div className="max-h-80 overflow-y-auto rounded-md border bg-card p-3">
           <div className="identifier text-xs wrap-break-word whitespace-pre-wrap">
             {lines.map((line, index) => {
               const { collection, text, counts } = parsePlanLogLine(line);

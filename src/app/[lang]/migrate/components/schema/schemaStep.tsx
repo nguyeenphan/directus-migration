@@ -127,7 +127,7 @@ export const SchemaStep = ({
       <CompatibilityNotice compatibility={plan.compatibility} />
 
       {stranded.length > 0 && (
-        <div className="flex items-start gap-2 rounded-base border-2 bg-secondary-background border-warning p-3 text-sm text-warning">
+        <div className="flex items-start gap-2 rounded-md border bg-card border-warning p-3 text-sm text-warning">
           <TriangleAlert className="h-lh w-4 shrink-0" />
           <div className="flex flex-col gap-1">
             <p className="font-heading">

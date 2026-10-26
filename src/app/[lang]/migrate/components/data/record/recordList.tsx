@@ -49,7 +49,7 @@ export const RecordList = ({
   const allPicked = pickedCount === visible.length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
+    <div className="flex h-full min-h-0 flex-col rounded-md border bg-card">
       <div className="flex items-center gap-2 border-b px-2 py-1.5">
         <Checkbox
           checked={allPicked}

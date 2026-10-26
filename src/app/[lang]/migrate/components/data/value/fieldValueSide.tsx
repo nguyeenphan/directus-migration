@@ -22,9 +22,9 @@ export const FieldValueSide = ({ label, text, isNew = false }: TProps) => (
     </div>
     <pre
       className={cn(
-        'identifier max-h-[50vh] overflow-auto whitespace-pre-wrap wrap-break-word rounded-base border-2 bg-secondary-background p-2 text-xs',
+        'identifier max-h-[50vh] overflow-auto whitespace-pre-wrap wrap-break-word rounded-md border bg-card p-2 text-xs',
         text === null && 'text-muted-foreground/50',
-        isNew && 'font-base text-foreground',
+        isNew && 'font-medium text-foreground',
       )}
     >
       {text ?? NOTHING}

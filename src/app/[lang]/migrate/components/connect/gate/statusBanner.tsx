@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 const TONE = {
   ok: 'border-success text-success',
   warning: 'border-warning text-warning',
-  error: 'border-2 border-destructive text-destructive',
+  error: 'border border-destructive text-destructive',
 } as const;
 
 type TProps = {
@@ -16,7 +16,7 @@ type TProps = {
 
 export const StatusBanner = ({ tone, icon, children }: TProps) => (
   <div
-    className={`flex items-start gap-2 rounded-base border-2 bg-secondary-background p-3 ${TONE[tone]}`}
+    className={`flex items-start gap-2 rounded-md border bg-card p-3 ${TONE[tone]}`}
   >
     <span className="flex h-lh shrink-0 items-center">{icon}</span>
     <div className="flex flex-col gap-1">{children}</div>

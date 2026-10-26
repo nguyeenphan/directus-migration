@@ -27,12 +27,14 @@ export const EnvBar = ({
 }: TProps) => {
   return (
     <header className="sticky top-0 z-20">
-      <div className="border-b-2 bg-secondary-background">
+      <div className="border-b bg-card">
         <div className="relative mx-auto flex max-w-[1600px] items-center justify-center px-6 py-2">
           <div className="absolute left-6 flex items-center gap-3">
             <EnvEndpoint connection={source} />
+            {/* Outside a Button, so nothing sizes the icon for us: it would
+                render at lucide's 24px next to 14px text. */}
             <span aria-hidden>
-              <ArrowRight />
+              <ArrowRight className="size-4" />
             </span>
             <EnvEndpoint connection={target} />
           </div>

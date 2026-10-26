@@ -21,7 +21,7 @@ const DiffLine = ({
 }) => (
   <span
     className={cn(
-      'grid grid-cols-[1rem_1fr] items-baseline gap-2 px-1.5 rounded-base',
+      'grid grid-cols-[1rem_1fr] items-baseline gap-2 rounded-sm px-1.5',
       DIFF_VALUE[side],
     )}
   >

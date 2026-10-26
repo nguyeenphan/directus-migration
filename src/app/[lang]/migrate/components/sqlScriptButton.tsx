@@ -78,17 +78,17 @@ export const SqlScriptButton = ({ generate, disabled }: TProps) => {
             <div className="relative flex min-h-0 flex-1 flex-col">
               <div className="absolute top-3 right-3 z-10">
                 <CopyButton
-                  className="rounded-base border-2 border-border bg-secondary-background p-1.5 text-foreground shadow-shadow [&_svg]:size-4"
+                  className="rounded-md border border-border bg-card p-1.5 text-foreground shadow-glass-sm [&_svg]:size-4"
                   label={translate('data-sql-script-title')}
                   text={() => script.sql}
                 />
               </div>
-              <pre className="identifier min-h-0 flex-1 overflow-auto rounded-base border-2 bg-secondary-background p-3 pr-12 text-xs whitespace-pre">
+              <pre className="identifier min-h-0 flex-1 overflow-auto rounded-md border bg-card p-3 pr-12 text-xs whitespace-pre">
                 {script.sql}
               </pre>
             </div>
           ) : (
-            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto rounded-base border-2 bg-secondary-background p-3">
+            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto rounded-md border bg-card p-3">
               <pre className="identifier text-xs wrap-break-word whitespace-pre-wrap">
                 {script.log.join('\n')}
               </pre>

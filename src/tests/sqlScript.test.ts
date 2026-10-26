@@ -2,14 +2,15 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  asStored,
   deleteStatement,
   insertRow,
   insertStub,
-  quoteIdent,
   singletonUpdate,
-  sqlLiteral,
+  storedShapesOf,
   updateStatement,
 } from '@/lib/directus/sqlScript';
+import { quoteIdent, sqlLiteral } from '@/utils/sql';
 
 test('identifiers are quoted, and embedded quotes are doubled', () => {
   assert.equal(quoteIdent('users'), '"users"');
@@ -65,6 +66,67 @@ test('insert row writes every listed column in one shot', () => {
   assert.equal(
     sql,
     `INSERT INTO "directus_files" ("id", "title") VALUES ('abc', 'Gấu''s file') ON CONFLICT ("id") DO NOTHING;`,
+  );
+});
+
+test('a row inserted whole has its audit fields blanked too', () => {
+  assert.equal(
+    insertRow('settings', 'id', ['id', 'title', 'user_created'], {
+      id: 1,
+      title: 'Site',
+      user_created: 'someone',
+    }),
+    `INSERT INTO "settings" ("id", "title", "user_created") VALUES (1, 'Site', NULL) ON CONFLICT ("id") DO NOTHING;`,
+  );
+});
+
+test('a json column is written as json, whatever its value parses to', () => {
+  const snapshot = {
+    fields: [
+      { field: 'count', type: 'json' },
+      { field: 'flag', type: 'unknown', schema: { data_type: 'jsonb' } },
+      { field: 'word', type: 'text', meta: { special: ['cast-json'] } },
+      { field: 'digits', type: 'json' },
+      { field: 'list', type: 'json' },
+      { field: 'none', type: 'json' },
+      { field: 'tags', type: 'csv' },
+      { field: 'title', type: 'string' },
+      { field: 'other', type: 'json', collection: 'elsewhere' },
+    ].map((field) => ({ collection: 'posts', ...field })),
+  } as never;
+
+  const stored = asStored(
+    {
+      id: 1,
+      count: 5,
+      flag: true,
+      word: 'hello',
+      digits: '123',
+      list: [{ a: "it's" }],
+      none: null,
+      tags: ['a', 'b'],
+      title: 'plain',
+      other: 7,
+    },
+    storedShapesOf(snapshot, 'posts'),
+  );
+
+  assert.deepEqual(stored, {
+    id: 1,
+    count: '5',
+    flag: 'true',
+    word: '"hello"',
+    digits: '"123"',
+    list: `[{"a":"it's"}]`,
+    none: null,
+    tags: 'a,b',
+    title: 'plain',
+    other: 7,
+  });
+
+  assert.equal(
+    updateStatement('posts', 'id', ['id', 'count', 'word', 'none'], stored),
+    `UPDATE "posts" SET "count" = '5', "word" = '"hello"', "none" = NULL WHERE "id" = 1;`,
   );
 });
 

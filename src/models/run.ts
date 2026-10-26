@@ -1,4 +1,5 @@
 import { RUN_STAGES } from '@/constants/run';
+import { quoteIdent, sqlLiteral } from '@/utils/sql';
 
 import type { TRow } from './common';
 import type { TConnection } from './connection';
@@ -97,12 +98,17 @@ export type TRun = {
 
 export const sequenceResetSql = (resets: TSequenceReset[]) =>
   resets
-    .map(
-      ({ collection, primaryKey }) =>
-        `SELECT setval(pg_get_serial_sequence('"${collection}"', '${primaryKey}'), ` +
-        `COALESCE((SELECT MAX("${primaryKey}") FROM "${collection}"), 1), ` +
-        `(SELECT COUNT(*) FROM "${collection}") > 0);`,
-    )
+    .map(({ collection, primaryKey }) => {
+      const table = quoteIdent(collection);
+
+      // The table name is parsed as SQL, so it keeps its quotes inside the
+      // literal; the column name is taken as written.
+      return (
+        `SELECT setval(pg_get_serial_sequence(${sqlLiteral(table)}, ${sqlLiteral(primaryKey)}), ` +
+        `COALESCE((SELECT MAX(${quoteIdent(primaryKey)}) FROM ${table}), 1), ` +
+        `(SELECT COUNT(*) FROM ${table}) > 0);`
+      );
+    })
     .join('\n');
 
 const stageUnits = (run: TRun, stage: TStage) =>

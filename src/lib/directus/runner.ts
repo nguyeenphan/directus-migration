@@ -88,10 +88,10 @@ import {
 import {
   compatibilityOf,
   onlyCollections,
+  portableChanges,
   pruneUnknownMeta,
   readColumns,
   readMetaColumns,
-  stripMetaChanges,
   unknownColumns,
   withoutUnknownKeys,
 } from './schema';
@@ -395,7 +395,7 @@ const applySchemaDiff = async (
 
   const structural = onlyCollections(
     pruneUnknownMeta(
-      stripMetaChanges(diff.diff as never),
+      portableChanges(diff.diff as never),
       compatibility.unknownMeta,
     ),
     keep,

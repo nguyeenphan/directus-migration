@@ -13,8 +13,8 @@ type TProps = {
 export const OutcomeBucket = ({ title, units, tone }: TProps) => (
   <section
     className={cn(
-      'rounded-base border-2 bg-secondary-background p-3',
-      tone === 'error' && units.length > 0 && 'border-2 border-destructive',
+      'rounded-md border bg-card p-3',
+      tone === 'error' && units.length > 0 && 'border border-destructive',
     )}
   >
     <div className="flex items-center gap-2">

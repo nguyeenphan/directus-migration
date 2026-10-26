@@ -80,7 +80,7 @@ export const RunView = ({
       </header>
 
       {awaitingBackup && (
-        <section className="flex flex-wrap items-center gap-3 rounded-base border-2 border-warning bg-secondary-background p-3">
+        <section className="flex flex-wrap items-center gap-3 rounded-md border border-warning bg-card p-3">
           <div className="min-w-0 flex-1">
             <p className="font-heading text-warning">
               {translate('run-backup-gate-title')}
@@ -112,7 +112,7 @@ export const RunView = ({
         {RUN_STAGES.map((stage) => (
           <li
             key={stage}
-            className="flex items-center gap-2 rounded-base border-2 bg-secondary-background px-3 py-1.5"
+            className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5"
           >
             <StatusMark status={stageStatus(run, stage)} />
             <span className="identifier">{translate(`stage-${stage}`)}</span>

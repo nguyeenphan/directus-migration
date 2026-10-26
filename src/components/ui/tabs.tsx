@@ -2,7 +2,6 @@
 
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs';
 import { cva, type VariantProps } from 'class-variance-authority';
-
 import { cn } from '@/utils/cn';
 
 function Tabs({
@@ -15,7 +14,7 @@ function Tabs({
       data-slot="tabs"
       data-orientation={orientation}
       className={cn(
-        'group/tabs flex gap-2 data-horizontal:flex-col',
+        'group/tabs flex gap-3 data-horizontal:flex-col',
         className,
       )}
       {...props}
@@ -23,13 +22,16 @@ function Tabs({
   );
 }
 
+// default = the site's segmented control (Preset · Wave from): sunken pill track,
+// glass pill slides to the active tab on Osmo's glide curve (Toggle Switch).
 const tabsListVariants = cva(
-  'group/tabs-list inline-flex w-fit items-center justify-center rounded-base p-1 text-foreground group-data-horizontal/tabs:h-10 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none',
+  'group/tabs-list relative inline-flex w-fit items-center justify-center text-muted-foreground group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col',
   {
     variants: {
       variant: {
-        default: 'border-2 bg-background',
-        line: 'gap-1 border-b-2 bg-transparent',
+        default:
+          'gap-0.5 rounded-full bg-sunken p-[3px] shadow-[inset_0_0_0_1px_var(--line)] group-data-horizontal/tabs:h-10 group-data-vertical/tabs:rounded-2xl',
+        line: 'gap-1 border-b border-line group-data-vertical/tabs:border-r group-data-vertical/tabs:border-b-0',
       },
     },
     defaultVariants: {
@@ -41,6 +43,7 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = 'default',
+  children,
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
@@ -49,7 +52,18 @@ function TabsList({
       data-variant={variant}
       className={cn(tabsListVariants({ variant }), className)}
       {...props}
-    />
+    >
+      {children}
+      <TabsPrimitive.Indicator
+        data-slot="tabs-indicator"
+        className={cn(
+          'absolute transition-[left,top,width,height] duration-500 ease-glide',
+          variant === 'default'
+            ? 'top-(--active-tab-top) left-(--active-tab-left) h-(--active-tab-height) w-(--active-tab-width) rounded-full bg-glass-strong shadow-glass-sm'
+            : 'bottom-[-1px] left-(--active-tab-left) h-px w-(--active-tab-width) bg-foreground group-data-vertical/tabs:top-(--active-tab-top) group-data-vertical/tabs:right-[-1px] group-data-vertical/tabs:bottom-auto group-data-vertical/tabs:left-auto group-data-vertical/tabs:h-(--active-tab-height) group-data-vertical/tabs:w-px',
+        )}
+      />
+    </TabsPrimitive.List>
   );
 }
 
@@ -58,10 +72,8 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
-        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-base border-2 border-transparent px-2 py-0.5 text-sm font-heading whitespace-nowrap text-foreground transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        'group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent',
-        'data-active:text-foreground group-data-[variant=default]/tabs-list:data-active:border-border group-data-[variant=default]/tabs-list:data-active:bg-main group-data-[variant=default]/tabs-list:data-active:text-main-foreground',
-        'after:absolute after:bg-main after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:-bottom-1.5 group-data-horizontal/tabs:after:h-1 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100',
+        "relative z-10 inline-flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 font-mono text-xs font-medium whitespace-nowrap transition-colors outline-none group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start group-data-vertical/tabs:py-2 hover:text-foreground focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-active:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+        'group-data-[variant=line]/tabs-list:rounded-none group-data-[variant=line]/tabs-list:px-2 group-data-[variant=line]/tabs-list:py-2.5',
         className,
       )}
       {...props}

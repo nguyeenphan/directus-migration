@@ -44,7 +44,7 @@ export const Stepper = ({ current, blocked, onNavigate }: TProps) => {
                   style={{ top: MARKER_SIZE / 2 }}
                   className={cn(
                     'absolute right-1/2 z-0 h-px w-full',
-                    index <= currentIndex ? 'bg-main/50' : 'bg-border',
+                    index <= currentIndex ? 'bg-brand/50' : 'bg-border',
                   )}
                 />
               )}
@@ -63,14 +63,14 @@ export const Stepper = ({ current, blocked, onNavigate }: TProps) => {
                 <span
                   style={{ width: MARKER_SIZE, height: MARKER_SIZE }}
                   className={cn(
-                    'relative z-10 flex items-center justify-center rounded-full border-2 transition-none',
-                    isCurrent && 'border-border bg-main text-main-foreground',
+                    'relative z-10 flex items-center justify-center rounded-full border transition-none',
+                    isCurrent && 'border-border bg-brand text-brand-foreground',
                     isDone &&
-                      'border-border bg-secondary-background text-foreground',
+                      'border-border bg-card text-foreground',
                     !isCurrent &&
                       !isDone &&
                       'border-transparent bg-muted text-muted-foreground/70',
-                    isEnabled && !isCurrent && 'group-hover:border-main/60',
+                    isEnabled && !isCurrent && 'group-hover:border-brand/60',
                   )}
                 >
                   <Icon className="size-3.5" />

@@ -18,7 +18,7 @@ export const SequenceResets = ({ run }: TProps) => {
   });
 
   return (
-    <section className="rounded-base border-2 bg-secondary-background border-warning p-3">
+    <section className="rounded-md border bg-card border-warning p-3">
       <div className="flex items-center gap-2">
         <p className="text-sm font-heading text-warning">{title}</p>
         <CopyButton
@@ -30,7 +30,7 @@ export const SequenceResets = ({ run }: TProps) => {
       <p className="text-xs text-muted-foreground">
         {translate('run-sequence-detail')}
       </p>
-      <pre className="identifier mt-2 max-h-40 overflow-auto rounded-base border-2 bg-secondary-background p-2 text-xs">
+      <pre className="identifier mt-2 max-h-40 overflow-auto rounded-md border bg-card p-2 text-xs">
         {sequenceResetSql(run.sequenceResets)}
       </pre>
     </section>

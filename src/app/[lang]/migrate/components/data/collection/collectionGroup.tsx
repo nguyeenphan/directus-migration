@@ -58,7 +58,9 @@ export const CollectionGroup = ({
     <li>
       <CollectionRow
         name={group.parent}
-        totals={groupTotals(group)}
+        // Open, the derived rows carry their own counts — adding them here
+        // too would make the column read as a sum that does not add up.
+        totals={isOpen && group.own ? rowTotals(group.own) : groupTotals(group)}
         checked={!groupInert && selectable.every((name) => selection.has(name))}
         disabled={groupInert}
         dimmed={!members.some((row) => selection.has(row.collection))}

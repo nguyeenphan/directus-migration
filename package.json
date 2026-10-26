@@ -12,7 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@base-ui/react": "^1.6.0",
+    "@base-ui/react": "^1.9.0",
     "@directus/sdk": "^18.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -35,7 +35,7 @@
     "eslint-config-next": "16.2.12",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "prettier": "^3.9.6",
-    "shadcn": "^4.16.0",
+    "shadcn": "^4.22.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5"

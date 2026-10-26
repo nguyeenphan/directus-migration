@@ -40,7 +40,7 @@ export const SchemaTree = ({
   } = useSchemaFilter(plan);
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-base border-2 bg-secondary-background">
+    <div className="flex h-full min-h-0 flex-col rounded-md border bg-card">
       <SchemaFilterBar
         query={query}
         filter={filter}

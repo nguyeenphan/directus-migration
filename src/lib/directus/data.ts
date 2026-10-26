@@ -17,8 +17,9 @@ import {
   keepsRow,
   type TDataChange,
 } from '@/models/plan';
-import { mapLimit } from '@/utils/concurrency';
+import { mapLimitRetryingLast } from '@/utils/concurrency';
 import { canonicalValue } from '@/utils/formatValue';
+import { isTransient } from '@/utils/retry';
 import { asRows } from '@/utils/rows';
 
 import { orMissing } from './errors';
@@ -37,45 +38,57 @@ export const buildDataPlan = async (
   const collections = migratableCollections(snapshot);
   const dependencies = dependencyMap(snapshot, collections);
 
-  return mapLimit(
+  const compareOne = async (collection: string, index: number) => {
+    onLog?.(`Comparing ${collection} (${index + 1}/${collections.length})`);
+
+    const primaryKey = primaryKeyOf(snapshot, collection);
+
+    const compared = await compareCollection({
+      from,
+      to,
+      collection,
+      primaryKey,
+      columns: realColumnsOf(snapshot, collection),
+      isSingleton: isSingletonCollection(snapshot, collection),
+      allCollections: collections,
+      onLog,
+    });
+
+    const { sourceCount, targetCount, ...counts } = compared;
+
+    const change: TDataChange = {
+      ...counts,
+      primaryKey,
+      hasAutoIncrement: hasAutoIncrementKey(snapshot, collection),
+      dependsOn: dependencies.get(collection) ?? [],
+    };
+
+    if (!isEmptyChange(change)) {
+      onLog?.(
+        `${collection}: read ${sourceCount} from the source and ` +
+          `${targetCount ?? 'nothing'} from the target — ` +
+          `+${change.toCreate} ~${change.toUpdate ?? '?'} ` +
+          `-${change.extraInTarget}`,
+      );
+    }
+
+    return change;
+  };
+
+  // A busy source answers 503 once its queue is full, and by then the retries
+  // inside the read have already been spent. Rather than losing the whole
+  // comparison to a moment of load, the collection is set aside and compared
+  // again at the end, when the fan-out is over.
+  return mapLimitRetryingLast(
     collections,
     COMPARE_CONCURRENCY,
-    async (collection, index) => {
-      onLog?.(`Comparing ${collection} (${index + 1}/${collections.length})`);
-
-      const primaryKey = primaryKeyOf(snapshot, collection);
-
-      const compared = await compareCollection({
-        from,
-        to,
-        collection,
-        primaryKey,
-        columns: realColumnsOf(snapshot, collection),
-        isSingleton: isSingletonCollection(snapshot, collection),
-        allCollections: collections,
-        onLog,
-      });
-
-      const { sourceCount, targetCount, ...counts } = compared;
-
-      const change: TDataChange = {
-        ...counts,
-        primaryKey,
-        hasAutoIncrement: hasAutoIncrementKey(snapshot, collection),
-        dependsOn: dependencies.get(collection) ?? [],
-      };
-
-      if (!isEmptyChange(change)) {
-        onLog?.(
-          `${collection}: read ${sourceCount} from the source and ` +
-            `${targetCount ?? 'nothing'} from the target — ` +
-            `+${change.toCreate} ~${change.toUpdate ?? '?'} ` +
-            `-${change.extraInTarget}`,
-        );
-      }
-
-      return change;
-    },
+    compareOne,
+    isTransient,
+    (collection, error) =>
+      onLog?.(
+        `${collection}: ${error instanceof Error ? error.message : String(error)}` +
+          ` — queued for a retry`,
+      ),
   );
 };
 

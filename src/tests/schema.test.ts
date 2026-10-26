@@ -6,8 +6,8 @@ import {
   compatibilityOf,
   kindOfEntry,
   onlyCollections,
+  portableChanges,
   pruneUnknownMeta,
-  stripMetaChanges,
   unknownColumns,
   withoutUnknownKeys,
 } from '@/lib/directus/schema';
@@ -118,7 +118,7 @@ const DIFF = {
 };
 
 test('metadata-only entries are dropped entirely', () => {
-  const stripped = stripMetaChanges(DIFF);
+  const stripped = portableChanges(DIFF);
 
   assert.deepEqual(
     stripped.collections?.map((entry) => entry.collection),
@@ -131,7 +131,7 @@ test('metadata-only entries are dropped entirely', () => {
 });
 
 test('a mixed entry keeps its structural half and loses the meta half', () => {
-  const [entry] = stripMetaChanges({
+  const [entry] = portableChanges({
     fields: [
       {
         collection: 'partner',
@@ -151,10 +151,10 @@ test('a mixed entry keeps its structural half and loses the meta half', () => {
 });
 
 test('keys the filter does not understand survive untouched', () => {
-  const stripped = stripMetaChanges({
+  const stripped = portableChanges({
     ...DIFF,
     systemFields: [{ collection: 'directus_users', field: 'x' }],
-  } as Parameters<typeof stripMetaChanges>[0]);
+  } as Parameters<typeof portableChanges>[0]);
 
   assert.deepEqual((stripped as Record<string, unknown>).systemFields, [
     { collection: 'directus_users', field: 'x' },
@@ -317,4 +317,26 @@ test('a row is pruned to what the target can actually store', () => {
     ),
     { id: 1, title: 'x' },
   );
+});
+
+test('system collections never reach /schema/apply', () => {
+  const stripped = portableChanges({
+    collections: [
+      { collection: 'directus_oauth_codes', diff: [{ kind: 'N', rhs: {} }] },
+      { collection: 'partner', diff: [{ kind: 'N', rhs: {} }] },
+    ],
+    fields: [
+      { collection: 'directus_users', field: 'x', diff: [{ kind: 'N' }] },
+    ],
+    relations: [
+      { collection: 'directus_files', field: 'y', diff: [{ kind: 'N' }] },
+    ],
+  });
+
+  assert.deepEqual(
+    stripped.collections?.map((entry) => entry.collection),
+    ['partner'],
+  );
+  assert.deepEqual(stripped.fields, []);
+  assert.deepEqual(stripped.relations, []);
 });

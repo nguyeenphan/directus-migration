@@ -27,6 +27,13 @@ test('the identifier and its quoting survive into the statement', () => {
   assert.ok(sql.includes('FROM "Field_translations"'));
 });
 
+test('a quote in a name is escaped, as a literal and as an identifier', () => {
+  const sql = sequenceResetSql([{ collection: `o'ne"il`, primaryKey: `k'ey` }]);
+
+  assert.ok(sql.includes(`pg_get_serial_sequence('"o''ne""il"', 'k''ey')`));
+  assert.ok(sql.includes(`SELECT MAX("k'ey") FROM "o'ne""il"`));
+});
+
 test('one statement per collection, each on its own line', () => {
   const sql = sequenceResetSql([
     { collection: 'a', primaryKey: 'id' },
