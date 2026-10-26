@@ -31,7 +31,7 @@ export const LeaveFlowDialog = ({ open, onOpenChange, onConfirm }: TProps) => {
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="sm:justify-between">
           <AlertDialogCancel>{translate('leave-stay')}</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>
             {translate('leave-confirm')}

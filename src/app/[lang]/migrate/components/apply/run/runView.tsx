@@ -132,16 +132,6 @@ export const RunView = ({
 
       {finished && (
         <footer className="flex flex-wrap items-center gap-3 border-t pt-3">
-          <Button
-            variant="outline"
-            onClick={download}
-            disabled={!run.hasBackup || isActing}
-            className="gap-2"
-          >
-            <Download className="size-4" />
-            {translate('run-download-backup')}
-          </Button>
-
           {run.status !== 'rolled-back' && run.status !== 'succeeded' && (
             <Button onClick={onRetry} disabled={isActing} className="gap-2">
               <RotateCcw className="size-4" />

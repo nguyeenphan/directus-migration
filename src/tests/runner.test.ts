@@ -139,6 +139,28 @@ test('nothing is written before the backup has been handed over', async () => {
   assert.deepEqual(target.writes(), []);
 });
 
+test('a schema-only run is not held for a backup download', async () => {
+  const { request, connect } = pair([], [], {
+    collections: [],
+    applySchema: true,
+    schemaCollections: ['articles'],
+  });
+
+  const run = startRun(request, connect);
+
+  const seen: string[] = [];
+  await until(() => {
+    seen.push(run.status);
+    return isFinished(run);
+  });
+
+  assert.equal(run.hasBackup, true);
+  assert.ok(
+    !seen.includes('awaiting-backup'),
+    'a schema-only run waited at the backup gate',
+  );
+});
+
 test('a backup that cannot be read stops the run before any write', async () => {
   const { target, request, connect } = pair(
     [{ id: 1, title: 'new', body: null }],

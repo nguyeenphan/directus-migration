@@ -33,7 +33,7 @@ export const ConfirmWriteDialog = ({
           </AlertDialogTitle>
         </AlertDialogHeader>
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="sm:justify-between">
           <AlertDialogCancel>{translate('cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>
             {translate('apply-confirm-action')}

@@ -37,7 +37,7 @@ export const SchemaDriftDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="sm:justify-between">
           <AlertDialogCancel onClick={onKeepGoing}>
             {translate('drift-continue-data')}
           </AlertDialogCancel>

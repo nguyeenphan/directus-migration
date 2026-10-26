@@ -77,7 +77,9 @@ export const CollectionGroup = ({
               name: group.parent,
               count: group.derived.length,
             })}
-            className="text-muted-foreground hover:text-foreground"
+            // A bare 14px icon is too small to aim at between the checkbox and
+            // the name. The negative margin keeps the row's own spacing.
+            className="-mx-[5px] flex size-6 items-center justify-center text-muted-foreground hover:text-foreground"
           >
             {isOpen ? (
               <ChevronDown className="size-3.5" />

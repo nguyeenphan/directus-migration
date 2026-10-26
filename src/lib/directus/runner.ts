@@ -246,14 +246,21 @@ const execute = async (run: TRun, request: TRunRequest, connect: TConnect) => {
       return;
     }
 
-    await holdForBackupDownload(run);
+    // Only row data can be handed back: `rollbackRun` reads `backup.rows` and
+    // nothing else. A schema-only run has no rows to restore and never shows a
+    // Rollback button, so it is not held for a file nothing can consume.
+    const writesData = request.collections.length > 0;
+
+    if (writesData) await holdForBackupDownload(run);
 
     if (run.stopRequested) {
       log(run, 'warn', 'Stopped — nothing was written to the target.');
       return;
     }
 
-    log(run, 'info', 'Backup downloaded — writing to the target.');
+    if (writesData) {
+      log(run, 'info', 'Backup downloaded — writing to the target.');
+    }
 
     if (request.applySchema) {
       await runStageUnit(run, 'schema', () =>
@@ -267,7 +274,7 @@ const execute = async (run: TRun, request: TRunRequest, connect: TConnect) => {
       );
     }
 
-    if (request.collections.length > 0 && !hasFailed(run, 'schema')) {
+    if (writesData && !hasFailed(run, 'schema')) {
       await runStageUnit(run, 'files', () => copyFiles(run, from, to));
 
       if (hasFailed(run, 'files')) {

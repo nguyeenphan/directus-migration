@@ -39,7 +39,7 @@ export const RollbackDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="sm:justify-between">
           <AlertDialogCancel>{translate('cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>
             {translate('rollback-confirm-action')}

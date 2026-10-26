@@ -53,7 +53,9 @@ export const CollectionRow = ({
         onCheckedChange={onToggle}
         aria-label={label}
         title={disabled ? inertLabel : undefined}
-        className="opacity-0 transition-none group-hover:opacity-100 data-checked:opacity-100 disabled:opacity-100"
+        // The kit widens a checkbox's hit area by 12px each side, which in a
+        // row this dense reaches over the expand chevron and swallows it.
+        className="opacity-0 transition-none group-hover:opacity-100 after:inset-x-0 data-checked:opacity-100 disabled:opacity-100"
       />
 
       {children ?? <span className="w-3.5" />}
