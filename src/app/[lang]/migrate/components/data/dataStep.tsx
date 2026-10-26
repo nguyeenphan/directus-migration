@@ -332,7 +332,7 @@ export const DataStep = ({
         </span>
 
         <span className="ml-auto flex items-center gap-2">
-          {sequenceSql && (
+          {sequenceSql ? (
             <Button
               variant="outline"
               size="lg"
@@ -342,7 +342,7 @@ export const DataStep = ({
               <ListRestart className="size-4" />
               {translate('data-sequence-button')}
             </Button>
-          )}
+          ) : null}
           <SqlScriptButton
             disabled={selection.size === 0}
             generate={(onLog) =>

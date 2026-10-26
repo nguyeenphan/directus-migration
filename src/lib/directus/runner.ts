@@ -22,6 +22,7 @@ import {
   AUDIT_FIELDS,
   AUDIT_USER_FIELDS,
   READ_PAGE_SIZE,
+  ROW_READ_CONCURRENCY,
   WRITE_BATCH_SIZE,
 } from '@/constants/run';
 import { clientFor, type TDirectusClient } from '@/lib/directus/client';
@@ -55,6 +56,7 @@ import {
   type TStage,
 } from '@/models/run';
 import { chunkArray } from '@/utils/chunk';
+import { mapLimit } from '@/utils/concurrency';
 import { describeErrorInDetail } from '@/utils/describeError';
 import { withRetry } from '@/utils/retry';
 import { asRows } from '@/utils/rows';
@@ -324,14 +326,20 @@ const captureBackup = async (
   collections: string[],
 ) => {
   const snapshot = await withRetry(() => to.request(schemaSnapshot()));
-  const rows: Record<string, TRow[]> = {};
 
-  let total = 0;
+  // Reads only, and each collection stands alone, so they fan out. The first
+  // rejection still rejects the backup, exactly as reading them in turn did.
+  const lists = await mapLimit(
+    collections,
+    ROW_READ_CONCURRENCY,
+    (collection) => readTargetRows(to, snapshot, collection),
+  );
 
-  for (const collection of collections) {
-    rows[collection] = await readTargetRows(to, snapshot, collection);
-    total += rows[collection].length;
-  }
+  const rows: Record<string, TRow[]> = Object.fromEntries(
+    collections.map((collection, index) => [collection, lists[index]]),
+  );
+
+  const total = lists.reduce((sum, list) => sum + list.length, 0);
 
   putBackup(run.id, {
     capturedAt: new Date().toISOString(),
@@ -656,14 +664,22 @@ const planWork = async ({
   targetRows: Record<string, TRow[]>;
   mirror: boolean;
 }): Promise<TCollectionWork[]> => {
+  // Reads only, so they fan out. `mapLimit` keeps the results in `plans`
+  // order, and the failures are recorded in that same order below: the run
+  // log stays readable, and a read that fails still only fails its own unit.
+  const reads = await mapLimit(plans, ROW_READ_CONCURRENCY, async (plan) => {
+    try {
+      return { plan, rows: await readSourceRows(from, plan), error: null };
+    } catch (error) {
+      return { plan, rows: null, error };
+    }
+  });
+
   const sourceRows = new Map<string, TRow[]>();
 
-  for (const plan of plans) {
-    try {
-      sourceRows.set(plan.collection, await readSourceRows(from, plan));
-    } catch (error) {
-      failUnit(run, plan.collection, error);
-    }
+  for (const { plan, rows, error } of reads) {
+    if (rows) sourceRows.set(plan.collection, rows);
+    else failUnit(run, plan.collection, error);
   }
 
   const readable = plans.filter((plan) => sourceRows.has(plan.collection));

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 
 import {
   relationName,
@@ -13,7 +13,9 @@ export const useSchemaFilter = (plan: TSchemaPlan) => {
   const [filter, setFilter] = useState<TSchemaFilter>('all');
   const [showUnchanged, setShowUnchanged] = useState(false);
 
-  const needle = query.trim().toLowerCase();
+  // The box keeps `query` so it answers every keystroke; the three lists it
+  // filters are allowed to lag a frame behind on a large plan.
+  const needle = useDeferredValue(query.trim().toLowerCase());
 
   const collections = useMemo(
     () =>

@@ -75,7 +75,7 @@ export const RecordList = ({
       <div className="diff-dense min-h-0 flex-1 overflow-y-auto">
         <ul>
           {visible.map((record) => (
-            <li key={`${record.kind}-${record.key}`}>
+            <li key={`${record.kind}-${record.key}`} className="row-skip">
               <div
                 className={cn(
                   'flex items-baseline gap-2 px-2 hover:bg-muted',

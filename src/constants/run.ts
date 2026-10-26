@@ -45,3 +45,7 @@ export const PROTECTED_COLLECTIONS = [
   'directus_permissions',
   'directus_sessions',
 ] as const;
+
+// Collections whose rows are read at once when backing up or staging a run.
+// Higher than COMPARE_CONCURRENCY: these touch one instance, not both.
+export const ROW_READ_CONCURRENCY = 4;

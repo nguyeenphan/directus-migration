@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Activity, startTransition, useEffect, useState } from 'react';
 
 import { EnvBar } from '@/components/layout/envBar';
 import { useApplyRun } from '@/hooks/useApplyRun';
@@ -93,7 +93,9 @@ export const MigrationWizard = () => {
 
     if (next === 'connect' && step !== 'connect') return setConfirmLeave(true);
 
-    setStep(next);
+    // The step a click asks for is not urgent: the screen behind it is already
+    // mounted, so React is free to finish whatever it was doing first.
+    startTransition(() => setStep(next));
   };
 
   useEffect(() => {
@@ -124,7 +126,11 @@ export const MigrationWizard = () => {
       </EnvBar>
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-6 py-4">
-        {step === 'connect' && (
+        {/* Every step stays mounted and keeps its state: the record browser's
+            loaded details above all, which used to be re-fetched each time the
+            user stepped away and back. A hidden Activity runs no effects — the
+            run poll in the apply step included — and renders at low priority. */}
+        <Activity mode={step === 'connect' ? 'visible' : 'hidden'}>
           <ConnectStep
             source={ends.source}
             target={ends.target}
@@ -143,75 +149,81 @@ export const MigrationWizard = () => {
             }}
             onContinue={() => comparison.build('schema')}
           />
-        )}
+        </Activity>
 
-        {step === 'schema' && schemaRun.run && (
-          <SchemaRunView
-            run={schemaRun.run}
-            isPlanning={comparison.isBuilding}
-            onRunChange={schemaRun.setRun}
-            onRetry={schemaRun.applyNow}
-            onBack={schemaRun.clear}
-            onContinue={() => {
-              schemaRun.clear();
-              comparison.build('data');
-            }}
-          />
-        )}
+        <Activity mode={step === 'schema' ? 'visible' : 'hidden'}>
+          {schemaRun.run ? (
+            <SchemaRunView
+              run={schemaRun.run}
+              isPlanning={comparison.isBuilding}
+              onRunChange={schemaRun.setRun}
+              onRetry={schemaRun.applyNow}
+              onBack={schemaRun.clear}
+              onContinue={() => {
+                schemaRun.clear();
+                comparison.build('data');
+              }}
+            />
+          ) : (
+            plan && (
+              <SchemaStep
+                key={plan.generatedAt}
+                source={ends.source}
+                target={ends.target}
+                force={ends.force}
+                plan={plan.schema}
+                selection={picked.schema}
+                applySchema={picked.applySchema}
+                isApplyingSchema={schemaRun.isStarting}
+                schemaRunError={schemaRun.error}
+                onApplySchemaChange={picked.setApplySchema}
+                onSelectionChange={picked.setSchema}
+                onApplySchemaNow={schemaRun.applyNow}
+                isRecomparing={comparison.isBuilding}
+                onRecompare={() => comparison.build('schema')}
+                onContinue={() => goTo('data')}
+              />
+            )
+          )}
+        </Activity>
 
-        {step === 'schema' && !schemaRun.run && plan && (
-          <SchemaStep
-            key={plan.generatedAt}
-            source={ends.source}
-            target={ends.target}
-            force={ends.force}
-            plan={plan.schema}
-            selection={picked.schema}
-            applySchema={picked.applySchema}
-            isApplyingSchema={schemaRun.isStarting}
-            schemaRunError={schemaRun.error}
-            onApplySchemaChange={picked.setApplySchema}
-            onSelectionChange={picked.setSchema}
-            onApplySchemaNow={schemaRun.applyNow}
-            isRecomparing={comparison.isBuilding}
-            onRecompare={() => comparison.build('schema')}
-            onContinue={() => goTo('data')}
-          />
-        )}
+        <Activity mode={step === 'data' ? 'visible' : 'hidden'}>
+          {plan && (
+            <DataStep
+              key={plan.generatedAt}
+              source={ends.source}
+              target={ends.target}
+              rows={plan.data}
+              selection={picked.data}
+              excluded={picked.excluded}
+              mirrorData={picked.mirrorData}
+              onSelectionChange={picked.setData}
+              onExcludedChange={picked.setExcluded}
+              onMirrorDataChange={picked.setMirrorData}
+              isRecomparing={comparison.isBuilding}
+              onRecompare={() => comparison.build('data')}
+              continueBlocked={blocked.apply}
+              onContinue={() => goTo('apply')}
+            />
+          )}
+        </Activity>
 
-        {step === 'data' && plan && (
-          <DataStep
-            key={plan.generatedAt}
-            source={ends.source}
-            target={ends.target}
-            rows={plan.data}
-            selection={picked.data}
-            excluded={picked.excluded}
-            mirrorData={picked.mirrorData}
-            onSelectionChange={picked.setData}
-            onExcludedChange={picked.setExcluded}
-            onMirrorDataChange={picked.setMirrorData}
-            isRecomparing={comparison.isBuilding}
-            onRecompare={() => comparison.build('data')}
-            continueBlocked={blocked.apply}
-            onContinue={() => goTo('apply')}
-          />
-        )}
-
-        {step === 'apply' && plan && (
-          <ApplyStep
-            source={ends.source}
-            target={ends.target}
-            plan={plan}
-            dataSelection={picked.data}
-            excluded={picked.excluded}
-            mirrorData={picked.mirrorData}
-            applyRun={applyRun}
-            isRecomparing={comparison.isBuilding}
-            onRecompare={() => comparison.build('data')}
-            onBack={() => goTo('data')}
-          />
-        )}
+        <Activity mode={step === 'apply' ? 'visible' : 'hidden'}>
+          {plan && (
+            <ApplyStep
+              source={ends.source}
+              target={ends.target}
+              plan={plan}
+              dataSelection={picked.data}
+              excluded={picked.excluded}
+              mirrorData={picked.mirrorData}
+              applyRun={applyRun}
+              isRecomparing={comparison.isBuilding}
+              onRecompare={() => comparison.build('data')}
+              onBack={() => goTo('data')}
+            />
+          )}
+        </Activity>
 
         <PlanLogDialog
           open={comparison.showLog}

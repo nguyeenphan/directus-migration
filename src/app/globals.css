@@ -358,6 +358,15 @@
   line-height: 28px;
 }
 
+/* A row in a long diff list: the browser skips layout and paint while it is
+   scrolled out of view. 36px is `diff-dense`'s line box plus `py-1`, the
+   first guess for a row never painted yet; `auto` replaces it with the real
+   height once the row has been seen, so the scrollbar settles. */
+@utility row-skip {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
+}
+
 /* Prod is marked by material, not hue — red already means "will be deleted". */
 @utility stripes-prod {
   background-image: repeating-linear-gradient(

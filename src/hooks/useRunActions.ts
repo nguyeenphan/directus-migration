@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useEffectEvent, useState, useTransition } from 'react';
 
 import {
   confirmBackup,
@@ -23,16 +23,21 @@ export const useRunActions = (run: TRun, onRunChange: (run: TRun) => void) => {
 
   const finished = isFinished(run);
 
+  // The poll belongs to the run, not to the handler: `useEffectEvent` keeps
+  // `onRunChange` out of the deps, so a caller passing a fresh closure can no
+  // longer restart the timer — and with it the one-second clock — per render.
+  const poll = useEffectEvent(async () => {
+    const next = await readRun(run.id);
+    if (next) onRunChange(next);
+  });
+
   useEffect(() => {
     if (finished) return;
 
-    const timer = setInterval(async () => {
-      const next = await readRun(run.id);
-      if (next) onRunChange(next);
-    }, RUN_POLL_INTERVAL_MS);
+    const timer = setInterval(poll, RUN_POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [finished, run.id, onRunChange]);
+  }, [finished, run.id]);
 
   return {
     finished,

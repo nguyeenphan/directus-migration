@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 
 import {
   groupCollections,
@@ -12,7 +12,8 @@ export const useCollectionFilter = (rows: TDataChange[]) => {
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
-  const needle = query.trim().toLowerCase();
+  // Typing stays urgent; regrouping the rows behind it does not.
+  const needle = useDeferredValue(query.trim().toLowerCase());
 
   const { changed, skipped } = useMemo(() => {
     const changedRows = rows.filter((row) => !isEmptyChange(row));
