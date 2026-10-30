@@ -35,18 +35,21 @@ const DiffLine = ({
 
 /**
  * One value column, read top to bottom: what the target holds, then what it
- * becomes. A record that is new has no `before`, so it prints the added line
- * alone — no column is spent saying "nothing".
+ * becomes. A side that does not exist — no `before` on an added record, no
+ * `after` on a deleted one — prints nothing at all, rather than a line whose
+ * only content is a placeholder.
  */
 export const ValuePair = ({ field }: TProps) => {
   if (field.kind !== 'modify') {
     return <PlainValue text={field.before ?? field.after} />;
   }
 
-  if (field.display === 'longtext' && field.before !== null) {
-    return (
-      <WordDiffView before={field.before ?? ''} after={field.after ?? ''} />
-    );
+  if (
+    field.display === 'longtext' &&
+    field.before !== null &&
+    field.after !== null
+  ) {
+    return <WordDiffView before={field.before} after={field.after} />;
   }
 
   const value = (side: 'before' | 'after') => (
@@ -61,7 +64,9 @@ export const ValuePair = ({ field }: TProps) => {
       {field.before !== null && (
         <DiffLine side="before">{value('before')}</DiffLine>
       )}
-      <DiffLine side="after">{value('after')}</DiffLine>
+      {field.after !== null && (
+        <DiffLine side="after">{value('after')}</DiffLine>
+      )}
     </span>
   );
 };
